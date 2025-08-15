@@ -1,0 +1,24 @@
+# OS/IDE
+.DS_Store
+Thumbs.db
+.vscode/
+__pycache__/
+*.pyc
+
+# Python envs
+.env/
+.venv/
+venv/
+
+# Caches and large generated data
+geocode_cache.csv
+
+# Big generated HTML/CSVs you may not want in history
+ns_schools_map_editable.html
+*.failed_geocodes.csv
+ns_schools_status_all.csv
+ns_schools_status_filtered.csv
+
+# If your Excel is huge and private, ignore it too:
+2024_2025 Elementary Schools.xlsx
+ns_schools_map_editable.csv
