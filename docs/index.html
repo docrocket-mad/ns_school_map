@@ -93,7 +93,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 /* ===== Config ===== */
-const SHEETS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CMl0KcbjCZDM5d1TlX8BaAqT8A2uBd5eiHUEwVmYFNDMhM6G51Ele-lQ/exec"; // <-- paste from deployment
+const SHEETS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CMl0KcbjCZDM5d1TlX8BaAqT8A2uBd5eiHUEwVmYFNDMhM6G51Ele-lQ/exec"; // <— paste your URL
 const COLOR = {none:"#808080", recent:"#1f77b4", current:"#2ca02c"};
 
 /* ===== Map init ===== */
@@ -101,7 +101,7 @@ const map = L.map('map').setView([45.2, -62.99], 7);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19}).addTo(map);
 
 /* ===== State ===== */
-let DATA = [];              // live records {id, School, Address, Group, Phone, Email, lat, lon, Status}
+let DATA = [];              // live records
 let markers = [];           // [{marker, rec}]
 let lastClickLL = null;
 let UNDO_STACK = [];
@@ -110,7 +110,7 @@ let LIST_ON = false;
 let GROUPS = [];
 
 /* ===== Utilities ===== */
-function uuid() { // simple UUID v4
+function uuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -150,7 +150,12 @@ function downloadCSV(name, rows) {
   URL.revokeObjectURL(url);
 }
 
-/* ===== Backend calls ===== */
+/* ===== Backend calls (includes apiGetAll) ===== */
+async function apiGetAll() {
+  const res = await fetch(SHEETS_ENDPOINT, {method:"GET"});
+  const json = await res.json();
+  return json.data || [];
+}
 async function saveRecord(rec) {
   const payload = {op:"upsert", record: rec};
   try {
@@ -161,7 +166,6 @@ async function saveRecord(rec) {
     });
   } catch (e) { console.warn("Save error", e); }
 }
-
 async function deleteRecordById(id) {
   const payload = {op:"delete", id};
   try {
@@ -194,9 +198,7 @@ function visiblePredicate(rec) {
   const q = (document.getElementById('searchBox').value || '').trim().toLowerCase();
 
   let show = statuses.has(normalizeStatus(rec.Status));
-  if (show && groups.size > 0) {
-    show = groups.has(rec.Group || '');
-  }
+  if (show && groups.size > 0) show = groups.has(rec.Group || '');
   if (show && q) {
     const hay = ((rec.School||'') + ' ' + (rec.Address||'')).toLowerCase();
     show = hay.includes(q);
@@ -258,7 +260,7 @@ async function geocodeClient(q) {
     format: "jsonv2",
     q,
     countrycodes: "ca",
-    viewbox: "-66.5,47.2,-59.0,43.0", // west,north,east,south for NS
+    viewbox: "-66.5,47.2,-59.0,43.0",
     bounded: "1",
     limit: "1",
     addressdetails: "0"
@@ -400,9 +402,24 @@ map.on('click', async (e) => {
   openAddForm(lastClickLL.lat, lastClickLL.lng, "", "", "", "", "none");
 });
 
-async function geocodeToPoint(addr) {
-  const ll = await geocodeClient(addr);
-  if (ll) return [ll.lat, ll.lon];
+async function geocodeClient(q) {
+  if (!q) return null;
+  const params = new URLSearchParams({
+    format: "jsonv2", q, countrycodes: "ca",
+    viewbox: "-66.5,47.2,-59.0,43.0", bounded: "1",
+    limit: "1", addressdetails: "0"
+  });
+  const url = "https://nominatim.openstreetmap.org/search?" + params.toString();
+  try {
+    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (Array.isArray(json) && json.length > 0) {
+      const r = json[0];
+      const lat = Number(r.lat), lon = Number(r.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) return {lat, lon};
+    }
+  } catch (_) {}
   return null;
 }
 
@@ -530,27 +547,31 @@ document.getElementById('btnUseClick').onclick = () => {
 
 /* ===== Boot: load data from Sheets, render ===== */
 (async function init() {
-  const raw = await apiGetAll();
-  // sanitize + cast types
-  DATA = raw.map(r => ({
-    id: String(r.id || uuid()),
-    School: String(r.School || ''),
-    Address: String(r.Address || ''),
-    Group: String(r.Group || ''),
-    Phone: String(r.Phone || ''),
-    Email: String(r.Email || ''),
-    lat: Number(r.lat), lon: Number(r.lon),
-    Status: normalizeStatus(r.Status)
-  }));
-  // backfill any missing ids to the sheet once
-  const missing = DATA.filter(r => !raw.find(x => String(x.id||'') === r.id));
-  missing.forEach(saveRecord);
+  try {
+    const raw = await apiGetAll();  // <<— THIS WAS MISSING / MIS-ORDERED
+    DATA = raw.map(r => ({
+      id: String(r.id || uuid()),
+      School: String(r.School || ''),
+      Address: String(r.Address || ''),
+      Group: String(r.Group || ''),
+      Phone: String(r.Phone || ''),
+      Email: String(r.Email || ''),
+      lat: Number(r.lat), lon: Number(r.lon),
+      Status: normalizeStatus(r.Status)
+    }));
+    // backfill any missing ids to the sheet once
+    const missing = DATA.filter(r => !raw.find(x => String(x.id||'') === r.id));
+    missing.forEach(saveRecord);
 
-  groupSelInit();
-  DATA.forEach((rec, idx) => {
-    if (Number.isFinite(rec.lat) && Number.isFinite(rec.lon)) addCircleFor(rec, idx);
-  });
-  applyFilters();
+    groupSelInit();
+    DATA.forEach((rec, idx) => {
+      if (Number.isFinite(rec.lat) && Number.isFinite(rec.lon)) addCircleFor(rec, idx);
+    });
+    applyFilters();
+  } catch (e) {
+    console.error("Init failed:", e);
+    alert("Failed to load data from the Sheets endpoint. Check the console for details.");
+  }
 })();
 </script>
 </body>
