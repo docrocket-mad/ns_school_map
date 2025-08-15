@@ -563,19 +563,18 @@ document.getElementById('btnUseClick').onclick = () => {
   try {
     const raw = await apiGetAll();  // <<— THIS WAS MISSING / MIS-ORDERED
     DATA = raw.map(r => ({
-      id: String(r.id || uuid()),
-      School: String(r.School || ''),
-      Address: String(r.Address || ''),
-      Group: String(r.Group || ''),
-      Phone: String(r.Phone || ''),
-      Email: String(r.Email || ''),
-      lat: Number(r.lat), lon: Number(r.lon),
-      Status: normalizeStatus(r.Status)
-    }));
-    // backfill any missing ids to the sheet once
-    const missing = DATA.filter(r => !raw.find(x => String(x.id||'') === r.id));
-    missing.forEach(saveRecord);
+  id: String(r.id || ''),            // keep blank if blank
+  School: String(r.School || ''),
+  Address: String(r.Address || ''),
+  Group: String(r.Group || ''),
+  Phone: String(r.Phone || ''),
+  Email: String(r.Email || ''),
+  lat: Number(r.lat),
+  lon: Number(r.lon),
+  Status: normalizeStatus(r.Status)
+}));
 
+   
     groupSelInit();
     DATA.forEach((rec, idx) => {
       if (Number.isFinite(rec.lat) && Number.isFinite(rec.lon)) addCircleFor(rec, idx);
