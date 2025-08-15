@@ -38,8 +38,10 @@
   <div style="margin-bottom:8px;">
     <div style="font-weight:600; margin-bottom:4px;">Status</div>
     <label><input type="checkbox" class="statusChk" value="none" checked> None</label><br>
-    <label><input type="checkbox" class="statusChk" value="recent" checked> Recent</label><br>
-    <label><input type="checkbox" class="statusChk" value="current" checked> Current</label>
+<label><input type="checkbox" class="statusChk" value="recent" checked> Recent</label><br>
+<label><input type="checkbox" class="statusChk" value="current" checked> Current</label><br>
+<label><input type="checkbox" class="statusChk" value="staff" checked> Staff</label>
+
   </div>
 
   <div style="margin-bottom:8px;">
@@ -88,13 +90,21 @@
   <div><span style="display:inline-block;width:12px;height:12px;background:#808080;margin-right:6px;border-radius:50%;"></span> None</div>
   <div><span style="display:inline-block;width:12px;height:12px;background:#1f77b4;margin-right:6px;border-radius:50%;"></span> Recent</div>
   <div><span style="display:inline-block;width:12px;height:12px;background:#2ca02c;margin-right:6px;border-radius:50%;"></span> Current</div>
+  <div><span style="display:inline-block;width:12px;height:12px;background:#800080;margin-right:6px;border-radius:50%;"></span> Staff</div>
 </div>
+
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 /* ===== Config ===== */
 const SHEETS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CMl0KcbjCZDM5d1TlX8BaAqT8A2uBd5eiHUEwVmYFNDMhM6G51Ele-lQ/exec"; // <— paste your URL
-const COLOR = {none:"#808080", recent:"#1f77b4", current:"#2ca02c"};
+const COLOR = {
+  none:    "#808080",
+  recent:  "#1f77b4",
+  current: "#2ca02c",
+  staff:   "#800080" // purple
+};
+
 
 /* ===== Map init ===== */
 const map = L.map('map').setView([45.2, -62.99], 7);
@@ -117,10 +127,11 @@ function uuid() {
     return v.toString(16);
   });
 }
-function normalizeStatus(s) {
+function normalizeStatus(s){
   const v = String(s || '').trim().toLowerCase();
-  if (v === 'recent') return 'recent';
+  if (v === 'recent')  return 'recent';
   if (v === 'current' || v === 'active' || v === 'both') return 'current';
+  if (v === 'staff')   return 'staff';
   return 'none';
 }
 function showToast(msg="Saved!") {
@@ -298,6 +309,7 @@ function addCircleFor(rec, idx) {
         <button onclick="window._setStatus(${idx}, 'none')" style="padding:4px 8px">None</button>
         <button onclick="window._setStatus(${idx}, 'recent')" style="padding:4px 8px">Recent</button>
         <button onclick="window._setStatus(${idx}, 'current')" style="padding:4px 8px">Current</button>
+	<button onclick="window._setStatus(${idx}, 'staff')" style="padding:4px 8px">Staff</button>
       </div>
       <div style="display:flex; gap:6px; justify-content:flex-end;">
         <button onclick="window._move(${idx})" style="padding:4px 8px;">Move pin</button>
@@ -442,6 +454,7 @@ function openAddForm(lat, lon, usedAddress, usedGroup, usedPhone, usedEmail, use
         <option value="none" ${usedStatus==='none'?'selected':''}>None</option>
         <option value="recent" ${usedStatus==='recent'?'selected':''}>Recent</option>
         <option value="current" ${usedStatus==='current'?'selected':''}>Current</option>
+	<option value="staff" ${usedStatus==='staff'?'selected':''}>Staff</option>
       </select>
     </label><br><br>
     <div>Lat: <span id="f_lat">${Number(lat).toFixed(6)}</span> &nbsp; Lon: <span id="f_lon">${Number(lon).toFixed(6)}</span></div>
