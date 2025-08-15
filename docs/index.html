@@ -151,27 +151,23 @@ function downloadCSV(name, rows) {
 }
 
 /* ===== Backend calls ===== */
-async function apiGetAll() {
-  const res = await fetch(SHEETS_ENDPOINT, {method:"GET"});
-  const json = await res.json();
-  return json.data || [];
-}
 async function saveRecord(rec) {
   const payload = {op:"upsert", record: rec};
   try {
     await fetch(SHEETS_ENDPOINT, {
       method: "POST",
-      headers: {"Content-Type":"application/json"},
+      headers: {"Content-Type":"text/plain;charset=utf-8"},
       body: JSON.stringify(payload)
     });
   } catch (e) { console.warn("Save error", e); }
 }
+
 async function deleteRecordById(id) {
   const payload = {op:"delete", id};
   try {
     await fetch(SHEETS_ENDPOINT, {
       method: "POST",
-      headers: {"Content-Type":"application/json"},
+      headers: {"Content-Type":"text/plain;charset=utf-8"},
       body: JSON.stringify(payload)
     });
   } catch (e) { console.warn("Delete error", e); }
