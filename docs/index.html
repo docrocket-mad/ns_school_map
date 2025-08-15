@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_17b3a63e587ae57c58b9cdfb84a890b0 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+</head>
+<body>
+    
+    
+    <div id="panel" style="position: fixed; top: 20px; left: 20px; z-index: 9999; background: white; padding: 12px; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); font-family: system-ui, sans-serif; font-size: 13px; width: 360px; max-height: 84vh; overflow:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+        <div style="font-weight:700; font-size:14px;">Filters & Tools</div>
+        <button id="btnToggleList">List View: OFF</button>
+      </div>
+
+      <div id="listContainer" style="display:none; margin:10px 0; border:1px solid #ddd; border-radius:8px; max-height:220px; overflow:auto;">
+        <div style="padding:6px 8px; font-weight:600; border-bottom:1px solid #eee;">Schools</div>
+        <div id="schoolList" style="max-height:180px; overflow:auto;"></div>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <div style="font-weight:600; margin-bottom:4px;">Status</div>
+        <label><input type="checkbox" class="statusChk" value="none" checked> None</label><br>
+        <label><input type="checkbox" class="statusChk" value="recent" checked> Recent</label><br>
+        <label><input type="checkbox" class="statusChk" value="current" checked> Current</label>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <div style="font-weight:600; margin-bottom:4px;">Group</div>
+        <select id="groupSel" multiple size="7" style="width:100%;"></select>
+        <div style="display:flex; gap:6px; margin-top:6px;">
+          <button id="groupClear">Clear</button>
+          <button id="groupSelectAll">Select all</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <div style="font-weight:600; margin-bottom:4px;">Search</div>
+        <input id="searchBox" type="text" placeholder="School or address..." style="width:100%; padding:6px;">
+        <div style="display:flex; gap:6px; margin-top:6px;">
+          <button id="btnSearch">Apply</button>
+          <button id="btnClearSearch">Clear</button>
+          <button id="btnZoomFirst">Zoom to first</button>
+        </div>
+      </div>
+
+      <hr style="margin:10px 0;">
+      <div style="font-weight:700; margin-bottom:6px;">Add a School/Location</div>
+      <div>Toggle “Add Mode” to type an address (or click the map). Geocode to place the pin at the typed address.</div>
+      <div style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">
+        <button id="btnAddMode">Add Mode: OFF</button>
+        <input id="addAddress" type="text" placeholder="123 Main St, Town, NS" style="width:100%; padding:6px;">
+        <div style="display:flex; gap:6px;">
+          <button id="btnGeocode">Geocode address</button>
+          <button id="btnUseClick">Use last clicked</button>
+        </div>
+      </div>
+
+      <hr style="margin:10px 0;">
+      <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+        <button id="btnUndoDelete" title="Undo the most recent delete">Undo Delete</button>
+        <button id="btnDownload" style="font-weight:700;">Download CSV (All)</button>
+        <button id="btnDownloadFiltered" style="font-weight:700;">Download Filtered CSV</button>
+      </div>
+
+      <div id="toast" style="display:none; margin-top:8px; padding:6px 8px; background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9; border-radius:6px;">Saved!</div>
+    </div>
+
+    <div id="legend" style="position: fixed; bottom: 20px; left: 20px; z-index: 9999; background: white; padding: 10px 12px; border: 1px solid #ccc; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); font-family: system-ui, sans-serif; font-size: 13px;">
+      <div style="font-weight:700; margin-bottom:6px;">Status Legend</div>
+      <div><span style="display:inline-block;width:12px;height:12px;background:#808080;margin-right:6px;border-radius:50%;"></span> None</div>
+      <div><span style="display:inline-block;width:12px;height:12px;background:#1f77b4;margin-right:6px;border-radius:50%;"></span> Recent</div>
+      <div><span style="display:inline-block;width:12px;height:12px;background:#2ca02c;margin-right:6px;border-radius:50%;"></span> Current</div>
+    </div>
+    
+    
+<script>
+const COLOR={none:"#808080",recent:"#1f77b4",current:"#2ca02c"};
+const DATA=[{"School": "Aldershot Elementary", "Address": "446 Aldershot Rd. Kentville, Nova Scotia B4N 3V9, Canada", "Group": "AVRCE", "Phone": "902-690-3820", "Email": "", "lat": 45.0904227, "lon": -64.5003904, "Status": "none"}, {"School": "Annapolis East Elementary", "Address": "325 Marshall St. Box 640 Middleton, Nova Scotia B0S 1P0, Canada", "Group": "AVRCE", "Phone": "902-825-5330", "Email": "", "lat": 44.9467558, "lon": -65.0663194, "Status": "none"}, {"School": "Berwick and District", "Address": "249 Veterans Drive Box 40 Berwick, Nova Scotia B0P 1E0, Canada", "Group": "AVRCE", "Phone": "902-538-4720", "Email": "", "lat": 45.0444821, "lon": -64.7428901, "Status": "none"}, {"School": "Bridgetown Regional Community", "Address": "25 Cromwell Court Bridgetown, Nova Scotia B0S 1C0, Canada", "Group": "AVRCE", "Phone": "902-665-5400", "Email": "", "lat": 44.8402977, "lon": -65.2757869, "Status": "none"}, {"School": "Brooklyn District Elementary", "Address": "8008 Highway 14, Newport, Nova Scotia, Canada", "Group": "AVRCE", "Phone": "902-727-4120", "Email": "", "lat": 45.01305812, "lon": -64.00847714, "Status": "none"}, {"School": "Cambridge and District Elementary", "Address": "6113 Highway 1, Cambridge Station, Nova Scotia, Canada", "Group": "AVRCE", "Phone": "902-538-4680", "Email": "", "lat": 45.05844825, "lon": -64.63226854, "Status": "none"}, {"School": "Champlain Elementary", "Address": "109 North Street, Granville Ferry, Nova Scotia, B0S 1G0, Canada", "Group": "AVRCE", "Phone": "902-532-3270", "Email": "", "lat": 44.7531289, "lon": -65.5226465, "Status": "none"}, {"School": "Clark Rutherford Memorial School", "Address": "234 Spinnaker Drive, Cornwallis Park, Nova Scotia B0S 1H0, Canada", "Group": "AVRCE", "Phone": "902-638-4800", "Email": "", "lat": 44.6507819, "lon": -65.6291646, "Status": "none"}, {"School": "Coldbrook and District School", "Address": "2305 English Mountain Road, Coldbrook, Nova Scotia, B4R 1B6, Canada", "Group": "AVRCE", "Phone": "902-690-3830", "Email": "", "lat": 45.0581865, "lon": -64.5867727, "Status": "none"}, {"School": "Dr Arthur Hines School", "Address": "75 Musgrave Road Summerville, Nova Scotia B0N 2K0, Canada", "Group": "AVRCE", "Phone": "902-633-6300", "Email": "", "lat": 45.0984433, "lon": -64.1664332, "Status": "none"}, {"School": "Dwight Ross School", "Address": "949 Tremont Mountain Road Box 1420 Greenwood, Nova Scotia B0P 1N0, Canada", "Group": "AVRCE", "Phone": "902-765-7510", "Email": "", "lat": 44.9645649, "lon": -64.941266, "Status": "none"}, {"School": "Falmouth District", "Address": "30 School Street, Falmouth, Nova Scotia, B0P 1L0, Canada", "Group": "AVRCE", "Phone": "902-792-6710", "Email": "", "lat": 44.9946328, "lon": -64.1661287, "Status": "recent"}, {"School": "Gaspereau Valley Elementary", "Address": "2781 Greenfield Road RR 1 Wolfville, Nova Scotia B4P 2R1, Canada", "Group": "AVRCE", "Phone": "902-542-6090", "Email": "", "lat": 45.0782622, "lon": -64.3476643, "Status": "none"}, {"School": "Glooscap Elementary", "Address": "1017 J. Jordan Road, Canning, Nova Scotia, B0P 1H0, Canada", "Group": "AVRCE", "Phone": "902-582-2010", "Email": "", "lat": 45.1596973, "lon": -64.4358411, "Status": "recent"}, {"School": "Hantsport School", "Address": "11 School Street Box 392 Hantsport, Nova Scotia B0P 1P0, Canada", "Group": "AVRCE", "Phone": "902-684-4000", "Email": "", "lat": 45.0655223, "lon": -64.1815019, "Status": "none"}, {"School": "Kings County Academy", "Address": "35 Gary Pearl Drive Kentville, Nova Scotia B4N 0H4, Canada", "Group": "AVRCE", "Phone": "902-690-3850", "Email": "", "lat": 45.0778657, "lon": -64.5194677, "Status": "none"}, {"School": "Kingston and District School", "Address": "630 Pine Ridge Ave., Kingston, Nova Scotia, B0P 1R0, Canada", "Group": "AVRCE", "Phone": "902-765-7530", "Email": "", "lat": 44.9932336, "lon": -64.9429151, "Status": "recent"}, {"School": "L.E. Shaw Elementary", "Address": "486 Oak Island Road, Avonport, Nova Scotia B0P 1B0, Canada", "Group": "AVRCE", "Phone": "902-542-6900", "Email": "", "lat": 45.1012153, "lon": -64.2563482, "Status": "none"}, {"School": "Lawrencetown Consolidated School", "Address": "10 Middle Road RR 1 Lawrencetown, Nova Scotia B0S 1M0, Canada", "Group": "AVRCE", "Phone": "902-584-4500", "Email": "", "lat": 44.8789124, "lon": -65.1560461, "Status": "none"}, {"School": "New Minas Elementary School", "Address": "34 Jones Road New Minas, Nova Scotia B4N 3N1, Canada", "Group": "AVRCE", "Phone": "902-681-4900", "Email": "", "lat": 45.0734418, "lon": -64.4512705, "Status": "none"}, {"School": "Port Williams Elementary", "Address": "1261 Belcher Street RR 1 Port Williams, Nova Scotia B0P 1T0, Canada", "Group": "AVRCE", "Phone": "902-542-6074", "Email": "", "lat": 45.0948973, "lon": -64.4089377, "Status": "recent"}, {"School": "Somerset and District Elementary", "Address": "4339 Brooklyn Street, Somerset, Nova Scotia B0P 1E0, Canada", "Group": "AVRCE", "Phone": "902-538-4670", "Email": "", "lat": 45.075485, "lon": -64.7477914, "Status": "none"}, {"School": "St Mary's Elementary", "Address": "1276 Victoria Road Box 249 Aylesford, Nova Scotia B0P 1C0, Canada", "Group": "AVRCE", "Phone": "902-847-4400", "Email": "", "lat": 45.0299103, "lon": -64.8364861, "Status": "none"}, {"School": "Three Mile Plains District School", "Address": "4555 Highway 1 RR 2 Windsor, Nova Scotia, B0N 2T0, Canada", "Group": "AVRCE", "Phone": "902-792-6720", "Email": "", "lat": 44.9644679, "lon": -64.0942851, "Status": "none"}, {"School": "Windsor Elementary", "Address": "100 Tremaine Crescent, Windsor, Nova Scotia, Canada", "Group": "AVRCE", "Phone": "902-792-6770", "Email": "", "lat": 44.98445276, "lon": -64.12706573, "Status": "recent"}, {"School": "Windsor Forks District School", "Address": "120 Sangster Bridge Road RR 3 Windsor, Nova Scotia B0N 2T0, Canada", "Group": "AVRCE", "Phone": "902-792-6700", "Email": "", "lat": 44.945431, "lon": -64.1920082, "Status": "none"}, {"School": "Wolfville School", "Address": "19 Acadia Street Wolfville, Nova Scotia B4P 1K8, Canada", "Group": "AVRCE", "Phone": "902-542-6050", "Email": "", "lat": 45.0895643, "lon": -64.3620046, "Status": "none"}, {"School": "A.G. Baillie Memorial", "Address": "477 Victoria Street, New Glasgow NS B2H 1X1", "Group": "CCRCE", "Phone": "902-755-8240", "Email": "", "lat": 45.5841825, "lon": -62.6462718, "Status": "none"}, {"School": "Advocate District", "Address": "3521 Highway 209, Advocate Harbour NS B0M 1A0", "Group": "CCRCE", "Phone": "902-392-3400", "Email": "", "lat": 45.3412945, "lon": -64.7879015, "Status": "none"}, {"School": "Bible Hill Consolidated", "Address": "103 Pictou Road, Bible Hill, NS B2N 2S2", "Group": "CCRCE", "Phone": "902-896-5511", "Email": "", "lat": 45.3758927, "lon": -63.260194, "Status": "none"}, {"School": "Brookfield Elementary", "Address": "233 Highway 289, Brookfield, NS B0N 1C0", "Group": "CCRCE", "Phone": "902-673-5050", "Email": "", "lat": 45.2572132, "lon": -63.2650958, "Status": "none"}, {"School": "Chiganois Elementary", "Address": "11145 Highway 2, Masstown, B0M 1G0", "Group": "CCRCE", "Phone": "902-662-4420", "Email": "", "lat": 45.3845599, "lon": -63.4665206, "Status": "none"}, {"School": "Cobequid Consolidated Elementary", "Address": "2998 Highway 236, Old Barns, NS B6L 1K3", "Group": "CCRCE", "Phone": "902-896-5560", "Email": "", "lat": 45.3502166, "lon": -63.3853958, "Status": "none"}, {"School": "Cobequid District Elementary", "Address": "8993 Highway 354, Noel, NS B0N 2C0", "Group": "CCRCE", "Phone": "902-369-2960", "Email": "", "lat": 45.2919542, "lon": -63.7475544, "Status": "none"}, {"School": "Cumberland North Academy", "Address": "879 Highway 204, Brookdale, NS B4H 3Y1", "Group": "CCRCE", "Phone": "902-661-2464", "Email": "", "lat": 45.8017692, "lon": -64.1575772, "Status": "none"}, {"School": "Cyrus Eaton Elementary", "Address": "171 Queen Street, Pugwash,, Nova Scotia B0K 1L0, Canada", "Group": "CCRCE", "Phone": "902-243-3900", "Email": "", "lat": 45.8533238, "lon": -63.6596705, "Status": "none"}, {"School": "Debert Elementary", "Address": "1320 Masstown Road, Debert,, Nova Scotia B0M 1G0, Canada", "Group": "CCRCE", "Phone": "902-662-4400", "Email": "", "lat": 45.4374771, "lon": -63.4600192, "Status": "none"}, {"School": "Dr. W.A. MacLeod Consolidated", "Address": "6193 Trafalgar Road, Stellarton, NS B0K 1S0", "Group": "CCRCE", "Phone": "902-755-8450", "Email": "", "lat": 45.5420315, "lon": -62.667585, "Status": "none"}, {"School": "Elmsdale District Elementary", "Address": "75 MacMillan Drive, Elmsdale, NS, B2S 1A5", "Group": "CCRCE", "Phone": "902-883-5350", "Email": "", "lat": 44.961111, "lon": -63.52436, "Status": "none"}, {"School": "Enfield District Elementary", "Address": "29 Catherine Street, Enfield, NS B2T 1L4", "Group": "CCRCE", "Phone": "902-883-5300", "Email": "", "lat": 44.9536059, "lon": -63.529408, "Status": "none"}, {"School": "F.H. MacDonald Academy", "Address": "123 School Road, Sutherlands River, Nova Scotia B0K 1W0, Canada", "Group": "CCRCE", "Phone": "902-922-3805", "Email": "", "lat": 45.5927864, "lon": -62.5090076, "Status": "none"}, {"School": "G.R. Saunders Elementary", "Address": "45 Allan Avenue, Stellarton, Nova Scotia, B0K 1S0, Canada", "Group": "CCRCE", "Phone": "902-755-8230", "Email": "", "lat": 45.5612413, "lon": -62.661223, "Status": "none"}, {"School": "Great Village Elementary", "Address": "8849 Highway 2, Great Village, NS B0M 1L0", "Group": "CCRCE", "Phone": "902-668-6500", "Email": "", "lat": 45.4126394, "lon": -63.5963304, "Status": "none"}, {"School": "Harmony Heights Elementary", "Address": "25 Cedar Drive, Salmon River, NS B2N 0C1", "Group": "CCRCE", "Phone": "902-896-5798", "Email": "", "lat": 45.3621459, "lon": -63.2464721, "Status": "recent"}, {"School": "Hilden Elementary", "Address": "1737 Truro Road, Hilden, B0N 1C0", "Group": "CCRCE", "Phone": "902-896-5750", "Email": "", "lat": 45.3074467, "lon": -63.2888064, "Status": "none"}, {"School": "Kennetcook District Elementary", "Address": "4369 Highway 236, Kennetcook NS B0N 1P0", "Group": "CCRCE", "Phone": "902-362-3300", "Email": "", "lat": 45.1817927, "lon": -63.7169664, "Status": "none"}, {"School": "Maple Ridge Elementary", "Address": "1006 Highway 2, Lantz, NS B2S 1M8", "Group": "CCRCE", "Phone": "902-883-5361", "Email": "", "lat": 44.9799881, "lon": -63.4919093, "Status": "none"}, {"School": "McCulloch Education Centre", "Address": "350 Wellington Street, Pictou, Nova Scotia, B0K 1H0, Canada", "Group": "CCRCE", "Phone": "902-485-7990", "Email": "", "lat": 45.6876159, "lon": -62.70861, "Status": "none"}, {"School": "New Glasgow Academy", "Address": "93 Albert Street, New Glasgow NS B2H 5W8", "Group": "CCRCE", "Phone": "902-755-8400", "Email": "", "lat": 45.5868442, "lon": -62.6390298, "Status": "none"}, {"School": "North River Elementary", "Address": "80 Mountain Lee Road, North River NS B6L 6M2", "Group": "CCRCE", "Phone": "902-896-5530", "Email": "", "lat": 45.4007348, "lon": -63.2629033, "Status": "none"}, {"School": "Northport Consolidated Elementary", "Address": "7110 Highway 366, Northport NS B0L 1E0", "Group": "CCRCE", "Phone": "902-661-2490", "Email": "", "lat": 45.941073, "lon": -63.8719566, "Status": "none"}, {"School": "Oxford Regional Education Centre", "Address": "249 Lower Main Street, Oxford, Nova Scotia, B0M 1P0, Canada", "Group": "CCRCE", "Phone": "902-447-4513", "Email": "", "lat": 45.7400805, "lon": -63.8651261, "Status": "none"}, {"School": "Parrsboro Regional Elementary", "Address": "43 School Street, Parrsboro, Nova Scotia, B0M 1S0, Canada", "Group": "CCRCE", "Phone": "902-254-5605", "Email": "", "lat": 45.4052318, "lon": -64.3281418, "Status": "none"}, {"School": "Rawdon District Elementary", "Address": "3713 Highway 354, Upper Rawdon NS B0N 2N0", "Group": "CCRCE", "Phone": "902-632-6660", "Email": "", "lat": 45.0703595, "lon": -63.711543, "Status": "none"}, {"School": "Redcliff Middle", "Address": "33 Sunset Lane, Valley NS B6L 4K1", "Group": "CCRCE", "Phone": "902-896-5520", "Email": "", "lat": 45.3818828, "lon": -63.2185723, "Status": "none"}, {"School": "River Hebert District School", "Address": "2843 Barronsfield Road, River Hebert NS B0L 1G0", "Group": "CCRCE", "Phone": "902-251-3200", "Email": "", "lat": 45.692518, "lon": -64.3781215, "Status": "none"}, {"School": "Salt Springs Elementary", "Address": "2080 West River Station Road, Salt Springs NS B0K 1P0", "Group": "CCRCE", "Phone": "902-925-6000", "Email": "", "lat": 45.532211, "lon": -62.8913276, "Status": "none"}, {"School": "Scotsburn Elementary", "Address": "Box 388, 4100 Scotsburn Road, Scotsburn NS B0K 1R0", "Group": "CCRCE", "Phone": "902-485-7980", "Email": "", "lat": 45.6535502, "lon": -62.8571441, "Status": "none"}, {"School": "Shubenacadie District Elementary", "Address": "54 Mill Village Road, Shubenacadie NS B0N 2H0", "Group": "CCRCE", "Phone": "902-758-4600", "Email": "", "lat": 45.0867389, "lon": -63.4132539, "Status": "none"}, {"School": "Spring Street Academy", "Address": "59 Spring Street, Amherst NS B4H 1S4", "Group": "CCRCE", "Phone": "902-661-2499", "Email": "", "lat": 45.831342, "lon": -64.2025974, "Status": "none"}, {"School": "Springhill Elementary", "Address": "50 Princess Street, Springhill, NS B0M 1X0", "Group": "CCRCE", "Phone": "902-597-4240", "Email": "", "lat": 45.6467594, "lon": -64.0496172, "Status": "none"}, {"School": "Springhill Junior-Senior High", "Address": "84 Church Street, Springhill, Nova Scotia, B0M 1X0, Canada", "Group": "CCRCE", "Phone": "902-597-4250", "Email": "", "lat": 45.645343, "lon": -64.057056, "Status": "none"}, {"School": "Tatamagouche Regional Academy", "Address": "92 Blair Avenue, Tatamagouche NS B0K 1V0", "Group": "CCRCE", "Phone": "902-657-6235", "Email": "", "lat": 45.7125052, "lon": -63.2972735, "Status": "none"}, {"School": "Thorburn Consolidated School", "Address": "13 New Row, Thorburn, Nova Scotia, B0K 1W0, Canada", "Group": "CCRCE", "Phone": "902-922-3840", "Email": "", "lat": 45.5620804, "lon": -62.5642682, "Status": "none"}, {"School": "Trenton Elementary", "Address": "10 Sixth Street, Trenton, NS B0K 1X0", "Group": "CCRCE", "Phone": "902-755-8460", "Email": "", "lat": 45.6164811, "lon": -62.6329295, "Status": "none"}, {"School": "Trenton Middle School", "Address": "P. O. Box 10 37 Dickie Street, Trenton NS B0K 1X0", "Group": "CCRCE", "Phone": "902-755-8440", "Email": "", "lat": 45.6139203, "lon": -62.6331566, "Status": "none"}, {"School": "Truro Elementary", "Address": "125 Curtis Drive, Truro NS B2N 0C5", "Group": "CCRCE", "Phone": "902-896-5755", "Email": "", "lat": 45.3474, "lon": -63.283235, "Status": "none"}, {"School": "Truro Middle School", "Address": "445 Young Street, Truro NS B2N 7H9", "Group": "CCRCE", "Phone": "902-896-5550", "Email": "", "lat": 45.3476471, "lon": -63.2712195, "Status": "none"}, {"School": "Uniacke District", "Address": "551 Highway 1, Mount Uniacke NS B0N 1Z0", "Group": "CCRCE", "Phone": "902-866-5100", "Email": "", "lat": 44.8879371, "lon": -63.8223224, "Status": "none"}, {"School": "Upper Stewiacke Elementary", "Address": "5327 Highway 289, Upper Stewiacke NS B0N 2P0", "Group": "CCRCE", "Phone": "902-671-3000", "Email": "", "lat": 45.2202099, "lon": -62.995714, "Status": "none"}, {"School": "Valley Elementary", "Address": "96 Salmon River Road, Valley NS B6L 2S5", "Group": "CCRCE", "Phone": "902-896-5540", "Email": "", "lat": 45.392874, "lon": -63.2041346, "Status": "none"}, {"School": "Wallace Consolidated", "Address": "3853 Highway 307, Wallace NS B0K 1Y0", "Group": "CCRCE", "Phone": "902-257-6100", "Email": "", "lat": 45.81205, "lon": -63.4735405, "Status": "none"}, {"School": "Walter Duggan Consolidated", "Address": "2370 Spring Garden Road, Westville NS B0K 2A0", "Group": "CCRCE", "Phone": "902-396-2700", "Email": "", "lat": 45.5698782, "lon": -62.71883, "Status": "none"}, {"School": "West Colchester Consolidated", "Address": "27 Maple Avenue, Bass River NS B0M 1B0", "Group": "CCRCE", "Phone": "902-647-3500", "Email": "", "lat": 45.4157543, "lon": -63.7797823, "Status": "none"}, {"School": "West Highlands Elementary", "Address": "18 Maltby Court, Amherst, NS B4H 2L6", "Group": "CCRCE", "Phone": "902-661-2420", "Email": "", "lat": 45.8184631, "lon": -64.2118273, "Status": "none"}, {"School": "West Pictou Consolidated", "Address": "1999 Highway 376, Lyons Brook, Nova Scotia B0K 1H0, Canada", "Group": "CCRCE", "Phone": "902-485-7960", "Email": "", "lat": 45.6565238, "lon": -62.7971523, "Status": "none"}, {"School": "Winding River Consolidated", "Address": "272 Kitchener Street, Stewiacke, Nova Scotia B0N 2J0, Canada", "Group": "CCRCE", "Phone": "902-639-3199", "Email": "", "lat": 45.1346354, "lon": -63.331638, "Status": "none"}, {"School": "Admiral Westphal Elementary School", "Address": "6 Fourth St, Dartmouth, NS B2X 3A5", "Group": "HRCE", "Phone": "435-8305", "Email": "jkavanaugh@hrce.ca", "lat": 44.6855596, "lon": -63.5445873, "Status": "none"}, {"School": "Alderney School", "Address": "10 Lockview Rd, Fall River, NS B2T 1J1", "Group": "HRCE", "Phone": "464-2040", "Email": "laura.dunn@hrce.ca", "lat": 44.8177467, "lon": -63.6168658, "Status": "none"}, {"School": "Ash Lee Jefferson Elementary School", "Address": "10 Lockview Rd, Fall River, NS B2T 1J1", "Group": "HRCE", "Phone": "860-4163", "Email": "lmills@hrce.ca", "lat": 44.8177467, "lon": -63.6168658, "Status": "none"}, {"School": "Astral Drive Elementary School", "Address": "236 Astral Drive, Dartmouth, Nova Scotia, Canada", "Group": "HRCE", "Phone": "462-8500", "Email": "ade@hrce.ca", "lat": 44.65557804, "lon": -63.47875527, "Status": "none"}, {"School": "Atlantic Memorial - Terence Bay Elementary School", "Address": "3591 Prospect Road, Whites Lake, Nova Scotia B3T 1Z3, Canada", "Group": "HRCE", "Phone": "852-2166", "Email": "cmcbay@hrce.ca", "lat": 44.523736, "lon": -63.7766769, "Status": "none"}, {"School": "Atlantic View Elementary School", "Address": "3391 Lawrencetown Rd, Lawrencetown, NS B2Z 1R5", "Group": "HRCE", "Phone": "(902) 464-5245", "Email": "cdesbarres@hrce.ca", "lat": 44.6691784, "lon": -63.3760702, "Status": "none"}, {"School": "Basinview Drive Elementary School", "Address": "273 Basinview Dr, Bedford, NS B4A 3X8", "Group": "HRCE", "Phone": "832-8450", "Email": "bdcs@hrce.ca", "lat": 44.7239052, "lon": -63.6788149, "Status": "recent"}, {"School": "Beaver Bank-Kinsac Elementary School", "Address": "28 Kinsac Rd, Beaver Bank, NS B4G 1C5", "Group": "HRCE", "Phone": "864-6805", "Email": "kclarke@hrce.ca", "lat": 44.8494617, "lon": -63.6837183, "Status": "none"}, {"School": "Beaver Bank-Monarch Drive Elementary School", "Address": "38 Monarch Dr, Beaver Bank, NS B4E 3A5", "Group": "HRCE", "Phone": "864-7540", "Email": "ltaylor@hrce.ca", "lat": 44.8114204, "lon": -63.6810278, "Status": "none"}, {"School": "Bedford South School", "Address": "2 Oceanview Dr, Bedford, NS B4A 4J6", "Group": "HRCE", "Phone": "832-5800", "Email": "bedfords@hrce.ca", "lat": 44.7076797, "lon": -63.6786305, "Status": "recent"}, {"School": "Bel Ayr Elementary School", "Address": "4 Bell St, Dartmouth, NS B2W 2P3", "Group": "HRCE", "Phone": "435-8353", "Email": "smarsh@hrce.ca", "lat": 44.6758922, "lon": -63.5065881, "Status": "none"}, {"School": "Bell Park Academic Centre", "Address": "4 Thomas St, Lake Echo, NS B3E 1M6", "Group": "HRCE", "Phone": "829-2388", "Email": "bpac@hrsb.ns.ca", "lat": 44.7332867, "lon": -63.4039255, "Status": "none"}, {"School": "Bicentennial School", "Address": "85, NS-322, Dartmouth, Nova Scotia, B3A 1T9, Canada", "Group": "HRCE", "Phone": "464-2094", "Email": "tmcgowan@hrce.ca", "lat": 44.6705481, "lon": -63.5706915, "Status": "none"}, {"School": "BLT Jr.", "Address": "22 James St B3T 1G9, Timberlea, NS", "Group": "HRCE", "Phone": "876-3236", "Email": "bltjr@hrce.ca", "lat": 44.65782, "lon": -63.7417051, "Status": "none"}, {"School": "BLT Sr.", "Address": "24 James St, Timberlea, NS B3T 1H6", "Group": "HRCE", "Phone": "876-3230", "Email": "blt@hrce.ca", "lat": 44.657325, "lon": -63.7425717, "Status": "none"}, {"School": "Brookhouse Elementary School", "Address": "15 Christopher Ave, Dartmouth, NS B2W 1W9", "Group": "HRCE", "Phone": "435-8318", "Email": "bes@hrce.ca", "lat": 44.67988, "lon": -63.5204085, "Status": "recent"}, {"School": "Burton Ettinger School", "Address": "52 Alex St, Halifax, NS B3N 2W4", "Group": "HRCE", "Phone": "457-8922", "Email": "Jgraham@hrce.ca", "lat": 44.6520481, "lon": -63.6371519, "Status": "none"}, {"School": "Caldwell Road Elementary School", "Address": "280 Caldwell Road, Dartmouth, Nova Scotia, Canada", "Group": "HRCE", "Phone": "462-6010", "Email": "MBrace@hrce.ca", "lat": 44.66145149, "lon": -63.49139064, "Status": "none"}, {"School": "Caudle Park Elementary School", "Address": "35 McGee Dr, Lower Sackville, NS B4C 2J1", "Group": "HRCE", "Phone": "864-6864", "Email": "etsirigotis@hrce.ca", "lat": 44.7655337, "lon": -63.6624434, "Status": "recent"}, {"School": "Cavalier Drive School", "Address": "116 Cavalier Dr, Lower Sackville, NS B4C 3L9", "Group": "HRCE", "Phone": "864-7524", "Email": "ndaigle@hrce.ca", "lat": 44.7779245, "lon": -63.6630135, "Status": "recent"}, {"School": "Central Spryfield School", "Address": "364 Herring Cove Rd, Halifax, NS B3R 1V8", "Group": "HRCE", "Phone": "(902) 479-4286", "Email": "kmuldowney-doran@hrce.ca", "lat": 44.612076, "lon": -63.6164696, "Status": "recent"}, {"School": "Chebucto Heights Elementary School", "Address": "230 Cowie Hill Rd, Halifax, NS B3P 2M3", "Group": "HRCE", "Phone": "479-4298", "Email": "nbradfield@hrce.ca", "lat": 44.6290354, "lon": -63.6227429, "Status": "recent"}, {"School": "Colby Village Elementary School", "Address": "92 Colby Drive, Dartmouth, Nova Scotia, Canada", "Group": "HRCE", "Phone": "464-5152", "Email": "rcaume@hrce.ca", "lat": 44.66659165, "lon": -63.48440602, "Status": "recent"}, {"School": "Colonel John Stuart Elementary School", "Address": "5 John Stewart Drive, Dartmouth, Nova Scotia, Canada", "Group": "HRCE", "Phone": "464-5200", "Email": "ThorpeA@hrce.ca", "lat": 44.67414615, "lon": -63.47822806, "Status": "none"}, {"School": "Crichton Park School", "Address": "49 Lyngby Ave, Dartmouth, NS B3A 3V1", "Group": "HRCE", "Phone": "464-2503", "Email": "crichton@hrce.ca", "lat": 44.68356, "lon": -63.5643618, "Status": "recent"}, {"School": "Dartmouth South Academy", "Address": "111 Prince Arthur Ave, Dartmouth, NS B2Y 0C5", "Group": "HRCE", "Phone": "464-2081", "Email": "ABlumenthal@hrsb.ca", "lat": 44.6632694, "lon": -63.5462816, "Status": "none"}, {"School": "Duc d'Anville Elementary School", "Address": "12 Clayton Park Dr, Halifax, NS B3M 1L3", "Group": "HRCE", "Phone": "457-8940", "Email": "aweedon@hrce.ca", "lat": 44.662768, "lon": -63.6446122, "Status": "none"}, {"School": "Dutch Settlement Elementary School", "Address": "990 Highway 277, Dutch Settlement, Nova Scotia B2S 2J6, Canada", "Group": "HRCE", "Phone": "", "Email": "crichard@hrce.ca", "lat": 44.9915118, "lon": -63.4396746, "Status": "none"}, {"School": "East St. Margarets Elementary School", "Address": "8671 Peggys Cove Rd, Indian Harbour, NS B3Z 3P5", "Group": "HRCE", "Phone": "823-2463", "Email": "dobrien@hrce.ca", "lat": 44.5220577, "lon": -63.9353272, "Status": "none"}, {"School": "Elizabeth Sutherland School", "Address": "66 Rockingstone Rd, Halifax, NS B3R 2C9", "Group": "HRCE", "Phone": "479-4427", "Email": "swalker@hrce.ca", "lat": 44.6044231, "lon": -63.6175907, "Status": "none"}, {"School": "Fairview Heights School", "Address": "210 Coronation Avenue, Halifax, NS, B3N 2Y3", "Group": "HRCE", "Phone": "457-8953", "Email": "smacmullin@hrce.ca", "lat": 44.6503331, "lon": -63.6484402, "Status": "none"}, {"School": "George Bissett Elementary School", "Address": "170 Arklow Drive, Dartmouth, Nova Scotia, Canada", "Group": "HRCE", "Phone": "464-5184", "Email": "jhurley@hrce.ca", "lat": 44.67837825, "lon": -63.48597234, "Status": "none"}, {"School": "Grosvenor-Wentworth Park Elementary School", "Address": "4 Downing St, Halifax, NS B3M 2G4", "Group": "HRCE", "Phone": "", "Email": "bmacgillivray@hrce.ca", "lat": 44.6861686, "lon": -63.6692795, "Status": "none"}, {"School": "Hammonds Plains Consolidated School", "Address": "2180 Hammonds Plains Rd, Hammonds Plains, NS B4B 1M5", "Group": "HRCE", "Phone": "832-8412", "Email": "lcorkum@hrce.ca", "lat": 44.7337558, "lon": -63.7905261, "Status": "none"}, {"School": "Harbour View Elementary School", "Address": "25 Alfred Street, Dartmouth, Halifax Regional Municipality, Nova Scotia, Canada", "Group": "HRCE", "Phone": "", "Email": "dfournier@hrce.ca", "lat": 44.6809291, "lon": -63.5901507, "Status": "none"}, {"School": "Harrietsfield Elementary School", "Address": "1150 Old Sambro Rd, Harrietsfield, NS B3V 1B1", "Group": "HRCE", "Phone": "479-4230", "Email": "PLittle@hrce.ca", "lat": 44.5689399, "lon": -63.6342696, "Status": "recent"}, {"School": "Harry R. Hamilton Elementary School", "Address": "40 Hamilton Dr, Middle Sackville, NS B4E 0S6", "Group": "HRCE", "Phone": "864-6815", "Email": "JCholock-Whitty@hrce.ca", "lat": 44.7984308, "lon": -63.7287129, "Status": "none"}, {"School": "Hawthorn Elementary School", "Address": "10 Hawthorne St, Dartmouth, NS B2Y 2Y3", "Group": "HRCE", "Phone": "464-2048", "Email": "agourlay@hrce.ca", "lat": 44.669921, "lon": -63.5599328, "Status": "none"}, {"School": "Hillside Park Elementary School", "Address": "15 Hillside Ave, Lower Sackville, NS B4C 1W6", "Group": "HRCE", "Phone": "864-6873", "Email": "jacqulyn.reid@hrce.ca", "lat": 44.7588318, "lon": -63.6632854, "Status": "recent"}, {"School": "Holland Road Elementary School", "Address": "181 Holland Rd, Fletchers Lake, NS B2T 1A1", "Group": "HRCE", "Phone": "860-4170", "Email": "kwest@hrce.ca", "lat": 44.8426822, "lon": -63.6005707, "Status": "none"}, {"School": "Horizon Elementary School", "Address": "168 Redoubt Way, Eastern Passage, NS B3G 1E4", "Group": "HRCE", "Phone": "(902) 465-8651", "Email": "nliberatore@hrce.ca", "lat": 44.6068861, "lon": -63.477235, "Status": "recent"}, {"School": "Humber Park Elementary School", "Address": "5 Smallwood Ave, Lake Loon, NS B2W 3R6", "Group": "HRCE", "Phone": "464-5177", "Email": "Carmel.Mitchell@hrce.ca", "lat": 44.7049885, "lon": -63.4950535, "Status": "none"}, {"School": "Ian Forsyth Elementary School", "Address": "22 Glencoe Dr, Dartmouth, NS B2X 1J1", "Group": "HRCE", "Phone": "435-8435", "Email": "ayerxa@hrce.ca", "lat": 44.6940875, "lon": -63.5387015, "Status": "none"}, {"School": "Inglis Street Elementary School", "Address": "5985 Inglis St, Halifax, NS B3H 1K7", "Group": "HRCE", "Phone": "421-6767", "Email": "hartlenm@hrce.ca", "lat": 44.633207, "lon": -63.5829447, "Status": "none"}, {"School": "John MacNeil Elementary School", "Address": "62 Leaman Dr, Dartmouth, NS B3B 1X6", "Group": "HRCE", "Phone": "464-2488", "Email": "jgillespie@hrce.ca", "lat": 44.6905769, "lon": -63.5819608, "Status": "none"}, {"School": "John W. MacLeod", "Address": "1511 Purcells Cove Rd, Halifax, NS B3P 1B7", "Group": "HRCE", "Phone": "479-4437", "Email": "tmarchand@hrce.ca", "lat": 44.6301835, "lon": -63.6096651, "Status": "none"}, {"School": "Joseph Giles Elementary School", "Address": "54 Gregory Dr, Dartmouth, NS B2W 3M6", "Group": "HRCE", "Phone": "464-5192", "Email": "jfry@hrce.ca", "lat": 44.6848093, "lon": -63.4952745, "Status": "none"}, {"School": "Joseph Howe Elementary School", "Address": "2557 Maynard St, Halifax, NS B3K 3V6", "Group": "HRCE", "Phone": "", "Email": "michaelmacdonald@hrce.ca", "lat": 44.6558684, "lon": -63.5915954, "Status": "none"}, {"School": "Kingswood Elementary School", "Address": "34 Vrege Ct, Hammonds Plains, NS B4B 1E9", "Group": "HRCE", "Phone": "832-5522", "Email": "abriand@hrce.ca", "lat": 44.7222673, "lon": -63.7416094, "Status": "none"}, {"School": "LeMarchant-St. Thomas", "Address": "6141 Watt St, Halifax, NS B3H 2B7", "Group": "HRCE", "Phone": "421-6769", "Email": "mcavanaugh@hrce.ca", "lat": 44.6413113, "lon": -63.5921224, "Status": "none"}, {"School": "Marine Drive Academy (Sheet Harbour)", "Address": "479 Church Point Rd, Sheet Harbour, NS B0J 3B0", "Group": "HRCE", "Phone": "(902) 885-2777", "Email": "vergea@hrce.ca", "lat": 44.9184057, "lon": -62.518821, "Status": "none"}, {"School": "Michael Wallace", "Address": "24 Andover St, Dartmouth, NS B2X 2L9", "Group": "HRCE", "Phone": "435-8357", "Email": "slockhart@hrce.ca", "lat": 44.7024439, "lon": -63.5518205, "Status": "none"}, {"School": "Millwood Elementary School", "Address": "190 Beaver Bank Cross Road, Middle Sackville, NS B4E 1K5", "Group": "HRCE", "Phone": "902 864-7510", "Email": "mandrews@hrce.ca", "lat": 44.7881797, "lon": -63.7045566, "Status": "none"}, {"School": "Mount Edward Elementary School", "Address": "3 Windward Ave, Dartmouth, NS B2W 3K9", "Group": "HRCE", "Phone": "435-8459", "Email": "lbartkiw@hrce.ca", "lat": 44.6839088, "lon": -63.5130005, "Status": "none"}, {"School": "Musquodoboit Valley Education Centre", "Address": "12046 NS-224, Middle Musquodoboit, NS B0N 1X0", "Group": "HRCE", "Phone": "", "Email": "tsmith@hrce.ca", "lat": 45.0437052, "lon": -63.148258, "Status": "none"}, {"School": "Nelson Whynder Elementary School", "Address": "979 N Preston Rd, North Preston, NS B2Z 1A2", "Group": "HRCE", "Phone": "", "Email": "ADesmond@hrce.ca", "lat": 44.7428304, "lon": -63.4641622, "Status": "none"}, {"School": "O'Connell Drive Elementary School", "Address": "40 O'Connell Dr, Porters Lake, NS B3E 1E8", "Group": "HRCE", "Phone": "827-4112", "Email": "demin@hrce.ca", "lat": 44.7359094, "lon": -63.3217112, "Status": "none"}, {"School": "Ocean View Elementary School", "Address": "51 Oceanview School Rd, Eastern Passage, NS B3G 1J3", "Group": "HRCE", "Phone": "465-8670", "Email": "atemple@hrce.ca", "lat": 44.6089709, "lon": -63.4763132, "Status": "none"}, {"School": "Oldfield Consolidated School", "Address": "72 Halls Rd, Enfield, NS B2T 1C4", "Group": "HRCE", "Phone": "883-3010", "Email": "acannon@hrce.ca", "lat": 44.9263076, "lon": -63.5413652, "Status": "none"}, {"School": "Oxford School", "Address": "6364 North St, Halifax, NS B3L 1P6", "Group": "HRCE", "Phone": "421-6763", "Email": "jlamont@hrce.ca", "lat": 44.6497434, "lon": -63.6013336, "Status": "none"}, {"School": "Oyster Pond Academy", "Address": "10583 Highway 7, Jeddore Oyster Ponds, Nova Scotia, Canada", "Group": "HRCE", "Phone": "889-4300", "Email": "rlegge@hrce.ca", "lat": 44.78100137, "lon": -62.99837213, "Status": "none"}, {"School": "Park West School", "Address": "206 Langbrae Dr, Halifax, NS B3S 1L5", "Group": "HRCE", "Phone": "457-7800", "Email": "banyanwu@hrce.ca", "lat": 44.6671989, "lon": -63.668011, "Status": "none"}, {"School": "Porters Lake Elementary School", "Address": "40 Inspiration Dr, Porters Lake, NS B3E 0A6", "Group": "HRCE", "Phone": "827-2525", "Email": "twaterhouse-campbell@hrce.ca", "lat": 44.7358615, "lon": -63.2852058, "Status": "none"}, {"School": "Portland Estates Elementary School", "Address": "45 Portland Hills Dr, Dartmouth, NS B2W 6L5", "Group": "HRCE", "Phone": "433-7100", "Email": "lhpoirier@hrce.ca", "lat": 44.6649644, "lon": -63.5132105, "Status": "none"}, {"School": "Prospect Road Elementary School", "Address": "2199 Prospect Rd, Hatchet Lake, NS B3T 1R7", "Group": "HRCE", "Phone": "852-2441", "Email": "kmichaud@hrce.ca", "lat": 44.5642726, "lon": -63.7301591, "Status": "recent"}, {"School": "Robert Kemp Turner Elementary School", "Address": "141 Circassion Drive, Dartmouth, Nova Scotia, Canada", "Group": "HRCE", "Phone": "464-5205", "Email": "rstickings@hrce.ca", "lat": 44.68028786, "lon": -63.49650876, "Status": "none"}, {"School": "Rockingham Elementary School", "Address": "31 Tremont Dr, Halifax, NS B3M 1X8", "Group": "HRCE", "Phone": "457-8986", "Email": "rbona@hrce.ca", "lat": 44.6770547, "lon": -63.6539542, "Status": "none"}, {"School": "Rockingstone Heights School", "Address": "1 Regan Dr, Halifax, NS B3R 2J1", "Group": "HRCE", "Phone": "479.4452", "Email": "mcorbett@hrce.ca", "lat": 44.5977472, "lon": -63.6158747, "Status": "none"}, {"School": "Rocky Lake Elementary", "Address": "426 Rocky Lake Dr, Bedford, Nova Scotia, B4A 2Y9, Canada", "Group": "HRCE", "Phone": "(902) 832-8907", "Email": "iskeete@hrce.ca", "lat": 44.7411265, "lon": -63.6447092, "Status": "none"}, {"School": "Ross Road School", "Address": "336 Ross Rd, Westphal, NS B2Z 1H2", "Group": "HRCE", "Phone": "462-8340", "Email": "kleblanc@hrce.ca", "lat": 44.6896895, "lon": -63.4521855, "Status": "none"}, {"School": "Sackville Heights Elementary School", "Address": "1225 Old Sackville Rd, Middle Sackville, NS B4E 3A6", "Group": "HRCE", "Phone": "869-4700", "Email": "rwebster@hrce.ca", "lat": 44.7815609, "lon": -63.7148559, "Status": "none"}, {"School": "Saint Mary's", "Address": "5614 Morris St, Halifax, NS B3J 0A7", "Group": "HRCE", "Phone": "421-6749", "Email": "klongard@hrce.ca", "lat": 44.6401102, "lon": -63.5762249, "Status": "none"}, {"School": "Sambro Elementary School", "Address": "3725 Old Sambro Rd, Sambro, NS B3V 1G1", "Group": "HRCE", "Phone": "868-2296", "Email": "cstrome@hrce.ca", "lat": 44.4773845, "lon": -63.6053275, "Status": "none"}, {"School": "Seaside Elementary School", "Address": "1881 Caldwell Rd, Eastern Passage, NS B3G 1J3", "Group": "HRCE", "Phone": "465-7600", "Email": "rrossi@hrce.ca", "lat": 44.6077493, "lon": -63.4705961, "Status": "none"}, {"School": "Shannon Park Elementary School", "Address": "75 Iroquois Dr, Dartmouth, NS B3A 4M5", "Group": "HRCE", "Phone": "464-2084", "Email": "clarade@hrce.ca", "lat": 44.6837673, "lon": -63.602742, "Status": "recent"}, {"School": "Shatford Memorial Elementary School", "Address": "10089 St Margarets Bay Rd, Hubbards, NS B0J 1T0", "Group": "HRCE", "Phone": "857-4200", "Email": "swile@hrsb.ca", "lat": 44.6446293, "lon": -64.0497123, "Status": "none"}, {"School": "Sir Charles Tupper School", "Address": "1930 Cambridge St, Halifax, NS B3H 4S5", "Group": "HRCE", "Phone": "421-6775", "Email": "acomeau@hrce.ca", "lat": 44.6426613, "lon": -63.6010476, "Status": "none"}, {"School": "Smokey Drive Elementary School", "Address": "241 Smokey Dr, Lower Sackville, NS B4C 3G1", "Group": "HRCE", "Phone": "864-6838", "Email": "jean.miller@hrce.ca", "lat": 44.7857637, "lon": -63.6870278, "Status": "none"}, {"School": "South Woodside Elementary School", "Address": "5 Everette St, Dartmouth, NS B2W 1G2", "Group": "HRCE", "Phone": "464-2090", "Email": "dhaase@hrce.ca", "lat": 44.645384, "lon": -63.5412115, "Status": "recent"}, {"School": "Springvale Elementary School", "Address": "92 Downs Ave, Halifax, NS B3N 1Y6", "Group": "HRCE", "Phone": "479-4606", "Email": "mlamont@hrce.ca", "lat": 44.6419934, "lon": -63.6352989, "Status": "recent"}, {"School": "St. Catherine's", "Address": "3299 Connolly St, Halifax, NS B3L 3P7", "Group": "HRCE", "Phone": "493-5143", "Email": "sdriscoll@hrce.ca", "lat": 44.6561291, "lon": -63.6137416, "Status": "none"}, {"School": "St. Joseph's", "Address": "1589 Walnut St, Halifax, Nova Scotia, B3H 3S1, Canada", "Group": "HRCE", "Phone": "493-5180", "Email": "CGorman-tolliver@hrce.ca", "lat": 44.6399466, "lon": -63.5926348, "Status": "none"}, {"School": "St. Margaret's Bay Elementary School", "Address": "24 Ridgewood Dr, Head Of St Margarets Bay, NS B3Z 2H8", "Group": "HRCE", "Phone": "826-3300", "Email": "KJoy@hrce.ca", "lat": 44.6909353, "lon": -63.8958694, "Status": "none"}, {"School": "St. Stephen's Elementary School", "Address": "3669 Highland Ave, Halifax, NS B3K 4J9", "Group": "HRCE", "Phone": "493-5155", "Email": "dmadgett@hrce.ca", "lat": 44.6687455, "lon": -63.611381, "Status": "recent"}, {"School": "Sunnyside Elementary School", "Address": "210 Eaglewood Drive, Bedford", "Group": "HRCE", "Phone": "832-8983", "Email": "cthompson@hrce.ca", "lat": 44.7263072, "lon": -63.6472035, "Status": "none"}, {"School": "Sunnyside Elementary School (Fort Sackville)", "Address": "21 Perth Street, Bedford, B4A 2H1, Nova Scotia, Canada", "Group": "HRCE", "Phone": "", "Email": "", "lat": 44.7287941, "lon": -63.6581134, "Status": "none"}, {"School": "Sycamore Lane", "Address": "69 Sycamore Ln, Lower Sackville, NS B4C 1E8", "Group": "HRCE", "Phone": "864-6730", "Email": "Sboudreau@hrce.ca", "lat": 44.7754268, "lon": -63.6823359, "Status": "none"}, {"School": "Tantallon Elementary School (JR.)", "Address": "1 French Village Station Rd, Upper Tantallon, Nova Scotia B3Z 1L3, Canada", "Group": "HRCE", "Phone": "826-1204", "Email": "krutley@hrce.ca", "lat": 44.6918929, "lon": -63.8737704, "Status": "none"}, {"School": "Tantallon Elementary School (SR.)", "Address": "3 French Village Station Rd, Upper Tantallon, NS B3Z 1L3", "Group": "HRCE", "Phone": "826-1200", "Email": "gdavy@hrce.ca", "lat": 44.6913535, "lon": -63.875155, "Status": "none"}, {"School": "Upper Musquodoboit Consolidated School", "Address": "8416 Hwy 224, Upper Musquodoboit, NS B0N 2M0", "Group": "HRCE", "Phone": "568-2285", "Email": "tsmith@hrce.ca", "lat": 45.1376307, "lon": -62.9521741, "Status": "none"}, {"School": "Waverley Memorial", "Address": "2393 Rocky Lake Dr, Waverley, Nova Scotia, B2R 1S4, Canada", "Group": "HRCE", "Phone": "860-4150", "Email": "kwolfe@hrce.ca", "lat": 44.781093, "lon": -63.6002725, "Status": "none"}, {"School": "Westmount Elementary School", "Address": "6700 Edward Arab Ave, Halifax, NS B3L 2E2", "Group": "HRCE", "Phone": "493-5164", "Email": "teri.colter@hrce.ca", "lat": 44.6500311, "lon": -63.614847, "Status": "recent"}, {"School": "West Bedford School", "Address": "50 Broad St, Bedford,, Nova Scotia B4A 0T4, Canada", "Group": "HRCE", "Phone": "902-405-0337", "Email": "scasey@hrce.ca", "lat": 44.7148805, "lon": -63.7143801, "Status": "none"}, {"School": "William King Elementary School", "Address": "91 St Pauls Ave, Herring Cove, NS B3V 1H6", "Group": "HRCE", "Phone": "479-4200", "Email": "cbouliane@hrce.ca", "lat": 44.5689152, "lon": -63.5617876, "Status": "recent"}, {"School": "Aspotogan Consolidated", "Address": "105 Parkwood Drive, Hubbards, Nova Scotia, Canada", "Group": "SSRCE", "Phone": "9028572600", "Email": "acesprincipal@ssrce.ca", "lat": 44.59036008, "lon": -64.07135125, "Status": "none"}, {"School": "Bayview Community", "Address": "110 Clearway St, Mahone Bay, NS B0J 2E0", "Group": "SSRCE", "Phone": "9026242120", "Email": "bcsprincipal@ssrce.ca", "lat": 44.4537676, "lon": -64.3853617, "Status": "none"}, {"School": "Big Tancook Elementary", "Address": "36 School Rd, Tancook Island, NS B0J 3G0", "Group": "SSRCE", "Phone": "9022757985", "Email": "btesprincipal@ssrce.ca", "lat": 44.4609109, "lon": -64.1713321, "Status": "none"}, {"School": "Bluenose Academy", "Address": "18 Tannery Rd, Lunenburg, NS B0J 2C0", "Group": "SSRCE", "Phone": "902-634-2200", "Email": "baprincipal@ssrce.ca", "lat": 44.374549, "lon": -64.3220816, "Status": "none"}, {"School": "Bridgewater Elementary", "Address": "130 York St, Bridgewater, NS B4V 1R3", "Group": "SSRCE", "Phone": "902-541-8240", "Email": "besprincipal@ssrce.ca", "lat": 44.38462, "lon": -64.5373697, "Status": "none"}, {"School": "Chester District", "Address": "202 Duke Street, Chester, NS B0J 1J0", "Group": "SSRCE", "Phone": "902-275-2750", "Email": "cdsprincipal@ssrce.ca", "lat": 44.5451688, "lon": -64.2377574, "Status": "none"}, {"School": "Dr. John C. Wickwire Academy", "Address": "311 Old Port Mouton Rd, Liverpool, NS B0T 1K0", "Group": "SSRCE", "Phone": "902-354-7660", "Email": "djcwaprincipal@ssrce.ca", "lat": 44.0309657, "lon": -64.7250471, "Status": "none"}, {"School": "Greenfield Elementary", "Address": "5060 Highway, Greenfield, NS B0T 1E0", "Group": "SSRCE", "Phone": "902-685-5400", "Email": "nqgesprincipal@ssrce.ca", "lat": 44.2728283, "lon": -64.8417902, "Status": "recent"}, {"School": "Hebbville Academy", "Address": "16147 Highway 3, Hebbville, Nova Scotia B4V 6Y1, Canada", "Group": "SSRCE", "Phone": "902-541-8280", "Email": "haprincipal@ssrce.ca", "lat": 44.3207598, "lon": -64.5614486, "Status": "none"}, {"School": "New Germany Elementary", "Address": "150 School St, New Germany, NS B0R 1E0", "Group": "SSRCE", "Phone": "902-644-5020", "Email": "ngesprincipal@ssrce.ca", "lat": 44.5400417, "lon": -64.7208028, "Status": "recent"}, {"School": "Newcombville Elementary", "Address": "4220 NS-325, Newcombville, Nova Scotia, B4V 7X6, Canada", "Group": "SSRCE", "Phone": "902-541-8230", "Email": "nesprincipal@ssrce.ca", "lat": 44.382031, "lon": -64.6257123, "Status": "none"}, {"School": "New Ross Consolidated", "Address": "4689 NS-12, New Ross, Nova Scotia, B0J 2M0, Canada", "Group": "SSRCE", "Phone": "902-689-6100", "Email": "nrcsprincipal@ssrce.ca", "lat": 44.7305533, "lon": -64.4569371, "Status": "none"}, {"School": "North Queens Community School", "Address": "40 W Caledonia Rd, Caledonia, NS B0T 0A6", "Group": "SSRCE", "Phone": "902-682-3500", "Email": "nqgesprincipal@ssrce.ca", "lat": 44.3722857, "lon": -65.0330807, "Status": "recent"}, {"School": "Pentz Elementary", "Address": "2680 Hwy 331, Pleasantville, Nova Scotia, B0R 1G0, Canada", "Group": "SSRCE", "Phone": "902-688-3210", "Email": "pesprincipal@ssrce.ca", "lat": 44.333823, "lon": -64.4401579, "Status": "none"}, {"School": "Petite Riviere Elementary", "Address": "123 Wentzell Road, Petite Riviere Bridge, Nova Scotia, Canada", "Group": "SSRCE", "Phone": "902-688-3200", "Email": "presprincipal@ssrce.ca", "lat": 44.23846186, "lon": -64.45166942, "Status": "none"}, {"School": "West Northfield Elementary", "Address": "6 Victoria Acres Dr, West Northfield, NS B4V 5C7", "Group": "SSRCE", "Phone": "902-541-8220", "Email": "wnesprincipal@ssrce.ca", "lat": 44.458125, "lon": -64.602369, "Status": "none"}, {"School": "West Highlands School", "Address": "18 Maltby Court, Amherst, NS B4H 2L6", "Group": "CCRCE", "Phone": "902-661-2420", "Email": "", "lat": 45.8196362, "lon": -64.2124257, "Status": "none"}];  // {School, Address, Group, Phone, Email, lat, lon, Status}
+const GROUPS=["AVRCE", "CCRCE", "HRCE", "SSRCE"];
+let addMode=false;
+
+// Client-side geocoder (Nominatim) bounded to Nova Scotia
+async function geocodeClient(q) {
+  if (!q) return null;
+  const params = new URLSearchParams({
+    format: "jsonv2",
+    q,
+    countrycodes: "ca",
+    viewbox: "-66.5,47.2,-59.0,43.0", // west,north,east,south
+    bounded: "1",
+    limit: "1",
+    addressdetails: "0"
+  });
+  const url = "https://nominatim.openstreetmap.org/search?" + params.toString();
+  try {
+    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (Array.isArray(json) && json.length > 0) {
+      const r = json[0];
+      const lat = Number(r.lat), lon = Number(r.lon);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) return {lat, lon};
+    }
+  } catch (_) {}
+  return null;
+}
+
+function findMap() {
+  for (var k in window) {
+    try { if (window[k] && window[k] instanceof L.Map) return window[k]; } catch(e) {}
+  }
+  return null;
+}
+
+let markers = [];           // [{marker, rec}]
+let lastClickLL = null;
+let UNDO_STACK = [];        // {type:'delete', rec, idx}
+let moveIndex = null;       // when set, next map click moves that pin
+let LIST_ON = false;
+
+// ---------- Helpers ----------
+function normalizeStatus(s) {
+  const v = String(s || '').trim().toLowerCase();
+  if (v === 'recent') return 'recent';
+  if (v === 'current' || v === 'active' || v === 'both') return 'current';
+  return 'none';
+}
+
+function groupSelInit() {
+  const sel = document.getElementById('groupSel');
+  sel.innerHTML = '';
+  const uniq = new Set((GROUPS || []).filter(Boolean).map(x => String(x)));
+  DATA.forEach(r => { if (r.Group && String(r.Group).trim() !== '') uniq.add(String(r.Group)); });
+  Array.from(uniq).sort().forEach(g => {
+    const opt = document.createElement('option');
+    opt.value = g; opt.textContent = g; opt.selected = false;
+    sel.appendChild(opt);
+  });
+}
+
+function visiblePredicate(rec) {
+  const statuses = new Set(Array.from(document.querySelectorAll('.statusChk'))
+    .filter(x => x.checked).map(x => x.value));
+  const groupsSel = document.getElementById('groupSel');
+  const groups = new Set(groupsSel ? Array.from(groupsSel.selectedOptions).map(o => o.value) : []);
+  const q = (document.getElementById('searchBox').value || '').trim().toLowerCase();
+
+  let show = statuses.has(normalizeStatus(rec.Status));
+  if (show && groups.size > 0) {
+    show = groups.has(rec.Group || '');
+  }
+  if (show && q) {
+    const hay = ((rec.School||'') + ' ' + (rec.Address||'')).toLowerCase();
+    show = hay.includes(q);
+  }
+  return show;
+}
+
+// ---------- Markers ----------
+function addCircleFor(rec, idx, map) {
+  const color = COLOR[normalizeStatus(rec.Status)];
+  const safeTel = (rec.Phone || '').replace(/[^+\d]/g,'');
+  const firstEmail = (rec.Email || '').split(/[,\s;]+/).filter(Boolean)[0] || '';
+  const phoneLine = rec.Phone ? `<div style="font-size:12px;">📞 <a href="tel:${safeTel}">${rec.Phone}</a></div>` : '';
+  const emailLine = rec.Email ? `<div style="font-size:12px;">✉️ <a href="mailto:${firstEmail}">${rec.Email}</a></div>` : '';
+  const html = `
+    <div style='min-width:300px'>
+      <div style="font-weight:700">${rec.School || ''}</div>
+      <div style="font-size:12px; margin:4px 0;">${rec.Address || ''}</div>
+      <div style="font-size:12px; color:#666;">${rec.Group || ''}</div>
+      ${phoneLine}
+      ${emailLine}
+      <hr/>
+      <div style="font-size:12px; margin-bottom:6px;">Set status:</div>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
+        <button onclick="window._setStatus(${idx}, 'none')" style="padding:4px 8px">None</button>
+        <button onclick="window._setStatus(${idx}, 'recent')" style="padding:4px 8px">Recent</button>
+        <button onclick="window._setStatus(${idx}, 'current')" style="padding:4px 8px">Current</button>
+      </div>
+      <div style="display:flex; gap:6px; justify-content:flex-end;">
+        <button onclick="window._move(${idx})" style="padding:4px 8px;">Move pin</button>
+        <button onclick="window._delete(${idx})" style="padding:4px 8px; color:#b00020;">Delete</button>
+      </div>
+    </div>`;
+  const cm = L.circleMarker([rec.lat, rec.lon], {
+    radius: 7, color: color, fillColor: color, fillOpacity: 0.9, weight: 2
+  }).bindPopup(html);
+  cm.addTo(map);
+  markers.push({marker: cm, rec});
+}
+
+function rebuildMarkers(map) {
+  markers.forEach(m => map.removeLayer(m.marker));
+  markers = [];
+  DATA.forEach((rec, idx) => {
+    if (Number.isFinite(rec.lat) && Number.isFinite(rec.lon)) {
+      addCircleFor(rec, idx, map);
+    }
+  });
+  applyFilters(map);
+}
+
+// ---------- Status / Delete / Move ----------
+window._setStatus = function(idx, status) {
+  if (!DATA[idx]) return;
+  DATA[idx].Status = normalizeStatus(status);
+  const m = markers[idx] && markers[idx].marker;
+  if (m) m.setStyle({color: COLOR[DATA[idx].Status], fillColor: COLOR[DATA[idx].Status]});
+  const map = findMap();
+  applyFilters(map);
+};
+
+window._delete = function(idx) {
+  if (!DATA[idx]) return;
+  const rec = DATA[idx];
+  UNDO_STACK.push({type:'delete', rec: {...rec}, idx});
+  DATA.splice(idx, 1); // remove
+  const map = findMap();
+  rebuildMarkers(map); // rebind indexes
+  showToast("Deleted. Click Undo Delete to restore.");
+};
+
+window._move = function(idx) {
+  moveIndex = idx;
+  showToast("Move mode: click on the map to set new location.");
+};
+
+// ---------- Filters / Search ----------
+function applyFilters(map) {
+  let firstVisible = null;
+  markers.forEach(({marker, rec}) => {
+    const show = visiblePredicate(rec);
+    if (show) {
+      marker.addTo(map);
+      if (!firstVisible) firstVisible = marker;
+    } else {
+      map.removeLayer(marker);
+    }
+  });
+  rebuildList(); // keep list synced
+  return firstVisible;
+}
+
+function zoomFirst() {
+  const map = findMap();
+  const first = applyFilters(map);
+  if (first) {
+    const ll = first.getLatLng();
+    map.setView(ll, 14);
+    first.openPopup();
+  }
+}
+
+// ---------- List View ----------
+function toggleList() {
+  LIST_ON = !LIST_ON;
+  const btn = document.getElementById('btnToggleList');
+  const box = document.getElementById('listContainer');
+  btn.textContent = "List View: " + (LIST_ON ? "ON" : "OFF");
+  box.style.display = LIST_ON ? "block" : "none";
+  if (LIST_ON) rebuildList();
+}
+
+function rebuildList() {
+  const wrap = document.getElementById('schoolList');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  if (!LIST_ON) return;
+
+  const rows = [];
+  DATA.forEach((rec, idx) => {
+    if (!Number.isFinite(rec.lat) || !Number.isFinite(rec.lon)) return;
+    if (!visiblePredicate(rec)) return;
+    rows.push({rec, idx});
+  });
+
+  rows.sort((a, b) => String(a.rec.School||'').localeCompare(String(b.rec.School||'')));
+
+  if (!rows.length) {
+    const empty = document.createElement('div');
+    empty.textContent = "No schools match the current filters.";
+    empty.style.cssText = "padding:8px; color:#666;";
+    wrap.appendChild(empty);
+    return;
+  }
+
+  rows.forEach(({rec, idx}) => {
+    const item = document.createElement('div');
+    item.style.cssText = "padding:8px; border-bottom:1px solid #eee; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:8px;";
+    const left = document.createElement('div');
+    const safeTel = (rec.Phone || '').replace(/[^+\d]/g,'');
+    const firstEmail = (rec.Email || '').split(/[,\s;]+/).filter(Boolean)[0] || '';
+    const phoneLine = rec.Phone ? `<div style="font-size:12px; color:#666;">📞 ${rec.Phone}</div>` : '';
+    const emailLine = rec.Email ? `<div style="font-size:12px; color:#666;">✉️ ${rec.Email}</div>` : '';
+    left.innerHTML = `<div style="font-weight:600">${rec.School || ''}</div>
+                      <div style="font-size:12px; color:#666;">${rec.Group || ''}</div>
+                      <div style="font-size:12px; color:#666;">${rec.Address || ''}</div>
+                      ${phoneLine}
+                      ${emailLine}`;
+    const dot = document.createElement('span');
+    dot.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:50%;background:${COLOR[normalizeStatus(rec.Status)]}; flex:0 0 auto;`;
+    item.appendChild(left);
+    item.appendChild(dot);
+    item.onclick = () => {
+      const map = findMap();
+      const m = markers[idx] && markers[idx].marker;
+      if (m) {
+        const ll = m.getLatLng();
+        map.setView(ll, 14);
+        m.openPopup();
+      }
+    };
+    wrap.appendChild(item);
+  });
+}
+
+// ---------- Download ----------
+const HEADERS = ["School","Address","Group","Phone","Email","lat","lon","Status"];
+
+function toCSVLines(rows, headers) {
+  const lines = [headers.join(",")];
+  rows.forEach(row => {
+    const vals = headers.map(h => {
+      let v = row[h] == null ? "" : String(row[h]).replace(/"/g,'""');
+      if (/[",\n]/.test(v)) v = '"' + v + '"';
+      return v;
+    });
+    lines.push(vals.join(","));
+  });
+  return lines;
+}
+
+function downloadCSVAll() {
+  if (!DATA || !DATA.length) return;
+  const lines = toCSVLines(DATA, HEADERS);
+  const blob = new Blob([lines.join("\n")], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "ns_schools_status_all.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function downloadCSVFiltered() {
+  if (!DATA || !DATA.length) return;
+  const filtered = DATA.filter(r =>
+    Number.isFinite(r.lat) && Number.isFinite(r.lon) && visiblePredicate(r)
+  );
+  const lines = toCSVLines(filtered, HEADERS);
+  const blob = new Blob([lines.join("\n")], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "ns_schools_status_filtered.csv";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// ---------- Add Mode / Geocode / Move / Undo ----------
+function toggleAddMode() {
+  addMode = !addMode;
+  document.getElementById('btnAddMode').textContent = "Add Mode: " + (addMode ? "ON" : "OFF");
+}
+
+function showToast(msg="Saved!") {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = "block";
+  setTimeout(() => t.style.display = "none", 1600);
+}
+
+function mapClickHandler(e) {
+  lastClickLL = e.latlng;
+
+  const map = findMap();
+  if (moveIndex !== null) {
+    const idx = moveIndex;
+    moveIndex = null;
+    if (DATA[idx]) {
+      DATA[idx].lat = Number(e.latlng.lat.toFixed(6));
+      DATA[idx].lon = Number(e.latlng.lng.toFixed(6));
+      const m = markers[idx] && markers[idx].marker;
+      if (m) m.setLatLng(e.latlng);
+      applyFilters(map);
+      showToast("Moved.");
+    }
+    return;
+  }
+
+  if (!addMode) return;
+  openAddForm(lastClickLL.lat, lastClickLL.lng, null, "", "", "", "none");
+}
+
+async function doGeocodeToForm(form) {
+  const q = form.querySelector('#f_address').value || '';
+  const statusSpan = form.querySelector('#f_geo_status');
+  statusSpan.textContent = "Looking up…";
+  const ll = await geocodeClient(q);
+  if (ll) {
+    form.querySelector('#f_lat').textContent = ll.lat.toFixed(6);
+    form.querySelector('#f_lon').textContent = ll.lon.toFixed(6);
+    statusSpan.textContent = "Found ✓";
+  } else {
+    statusSpan.textContent = "Not found (using map/cursor)";
+  }
+}
+
+function openAddForm(lat, lon, geocodedLL, usedAddress, usedGroup, usedPhone, usedStatus) {
+  const form = document.createElement('div');
+  form.style.cssText = "position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:12px; border:1px solid #ccc; border-radius:10px; z-index:10000; width:380px; box-shadow:0 2px 8px rgba(0,0,0,0.2); font-family:system-ui, sans-serif; font-size:13px;";
+  form.innerHTML = `
+    <div style="font-weight:700; margin-bottom:8px;">Add School/Location</div>
+    <label>School<br><input id="f_school" style="width:100%" placeholder="Name"></label><br><br>
+    <label>Address<br><input id="f_address" style="width:100%" placeholder="Street, Town, NS" value="${usedAddress || ''}"></label>
+    <div style="display:flex; gap:6px; margin:6px 0 8px 0;">
+      <button id="f_geocode">Geocode</button>
+      <span id="f_geo_status" style="font-size:12px; color:#666;"></span>
+    </div>
+    <label>Group<br><input id="f_group" style="width:100%" placeholder="e.g., HRCE / AVRCE / CSAP / Private" value="${usedGroup || ''}"></label><br><br>
+    <label>Phone<br><input id="f_phone" style="width:100%" placeholder="+1 902 …" value="${usedPhone || ''}"></label><br><br>
+    <label>Email(s)<br><input id="f_email" style="width:100%" placeholder="one or more, separated by ;"></label><br><br>
+    <label>Status<br>
+      <select id="f_status" style="width:100%">
+        <option value="none" ${usedStatus==='none'?'selected':''}>None</option>
+        <option value="recent" ${usedStatus==='recent'?'selected':''}>Recent</option>
+        <option value="current" ${usedStatus==='current'?'selected':''}>Current</option>
+      </select>
+    </label><br><br>
+    <div>Lat: <span id="f_lat">${Number(lat).toFixed(6)}</span> &nbsp; Lon: <span id="f_lon">${Number(lon).toFixed(6)}</span></div>
+    <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
+      <button id="f_cancel">Cancel</button>
+      <button id="f_save">Save</button>
+    </div>
+  `;
+  document.body.appendChild(form);
+
+  form.querySelector('#f_geocode').onclick = () => { doGeocodeToForm(form); };
+  form.querySelector('#f_cancel').onclick = () => form.remove();
+  form.querySelector('#f_save').onclick = () => {
+    const rec = {
+      School: form.querySelector('#f_school').value || 'New Location',
+      Address: form.querySelector('#f_address').value || '',
+      Group: form.querySelector('#f_group').value || '',
+      Phone: form.querySelector('#f_phone').value || '',
+      Email: form.querySelector('#f_email').value || '',
+      lat: Number(form.querySelector('#f_lat').textContent),
+      lon: Number(form.querySelector('#f_lon').textContent),
+      Status: normalizeStatus(form.querySelector('#f_status').value || 'none')
+    };
+    const map = findMap();
+    DATA.push(rec);
+    addCircleFor(rec, DATA.length - 1, map);
+    if (rec.Group) {
+      const sel = document.getElementById('groupSel');
+      const exists = Array.from(sel.options).some(o => o.value === rec.Group);
+      if (!exists) {
+        const opt = document.createElement('option');
+        opt.value = rec.Group; opt.textContent = rec.Group; opt.selected = false;
+        sel.appendChild(opt);
+      }
+    }
+    applyFilters(map);
+    form.remove();
+    showToast("Added!");
+  };
+}
+
+function undoDelete() {
+  if (!UNDO_STACK.length) { showToast("Nothing to undo."); return; }
+  const action = UNDO_STACK.pop();
+  if (action.type === 'delete') {
+    const pos = Math.min(action.idx, DATA.length);
+    DATA.splice(pos, 0, action.rec);
+    const map = findMap();
+    rebuildMarkers(map);
+    showToast("Restored.");
+  }
+}
+
+// ---------- Init & wiring ----------
+function init() {
+  const map = findMap();
+  if (!map) { setTimeout(init, 300); return; }
+
+  groupSelInit();
+
+  DATA.forEach((rec, idx) => {
+    rec.Status = normalizeStatus(rec.Status);
+    if (Number.isFinite(rec.lat) && Number.isFinite(rec.lon)) {
+      addCircleFor(rec, idx, map);
+    }
+  });
+
+  document.getElementById('groupClear').onclick = () => {
+    const sel = document.getElementById('groupSel');
+    Array.from(sel.options).forEach(o => o.selected = false);
+    applyFilters(map);
+  };
+  document.getElementById('groupSelectAll').onclick = () => {
+    const sel = document.getElementById('groupSel');
+    Array.from(sel.options).forEach(o => o.selected = true);
+    applyFilters(map);
+  };
+
+  Array.from(document.querySelectorAll('.statusChk')).forEach(cb =>
+    cb.addEventListener('change', () => applyFilters(map))
+  );
+  document.getElementById('groupSel').addEventListener('change', () => applyFilters(map));
+  document.getElementById('btnSearch').onclick = () => applyFilters(map);
+  document.getElementById('btnClearSearch').onclick = () => { document.getElementById('searchBox').value=''; applyFilters(map); };
+  document.getElementById('btnZoomFirst').onclick = () => zoomFirst();
+
+  document.getElementById('btnDownload').onclick = () => downloadCSVAll();
+  document.getElementById('btnDownloadFiltered').onclick = () => downloadCSVFiltered();
+  document.getElementById('btnUndoDelete').onclick = () => undoDelete();
+
+  document.getElementById('btnAddMode').onclick = () => toggleAddMode();
+  map.on('click', mapClickHandler);
+
+  document.getElementById('btnGeocode').onclick = async () => {
+    if (!addMode) { toggleAddMode(); }
+    const addr = (document.getElementById('addAddress').value || '').trim();
+    if (!addr) { document.getElementById('addAddress').focus(); return; }
+    const ll = await geocodeClient(addr);
+    if (ll) {
+      openAddForm(ll.lat, ll.lon, ll, addr, "", "", "none");
+      map.setView([ll.lat, ll.lon], 14);
+    } else {
+      const base = lastClickLL ? {lat: lastClickLL.lat, lon: lastClickLL.lng} : {lat: map.getCenter().lat, lon: map.getCenter().lng};
+      openAddForm(base.lat, base.lon, null, addr, "", "", "none");
+    }
+  };
+  document.getElementById('btnUseClick').onclick = () => {
+    if (!addMode) { toggleAddMode(); }
+    const base = lastClickLL ? {lat: lastClickLL.lat, lon: lastClickLL.lng} : {lat: map.getCenter().lat, lon: map.getCenter().lng};
+    const addr = (document.getElementById('addAddress').value || '').trim();
+    openAddForm(base.lat, base.lon, null, addr, "", "", "none");
+  };
+
+  document.getElementById('btnToggleList').onclick = () => toggleList();
+
+  applyFilters(map); // also builds the list if ON
+}
+
+setTimeout(init, 400);
+</script>
+    
+            <div class="folium-map" id="map_17b3a63e587ae57c58b9cdfb84a890b0" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_17b3a63e587ae57c58b9cdfb84a890b0 = L.map(
+                "map_17b3a63e587ae57c58b9cdfb84a890b0",
+                {
+                    center: [45.2, -62.99],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 7,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_aeeefbafba17f99075a92e617106b6bd = L.tileLayer(
+                "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 19,
+  "maxNativeZoom": 19,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors",
+  "subdomains": "abc",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_aeeefbafba17f99075a92e617106b6bd.addTo(map_17b3a63e587ae57c58b9cdfb84a890b0);
+        
+</script>
+</html>
