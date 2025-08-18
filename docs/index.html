@@ -22,11 +22,33 @@
   }
   #panelHeader .badge { background:#ffe08a; color:#7a4d00; font-weight:700; padding:2px 6px; border-radius:6px; }
   #panelHeader .title { font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px; }
-  #btnCollapsePanel { cursor:pointer; border:1px solid #ccc; border-radius:6px; background:#fff; padding:2px 6px; font-size:12px; }
+  #btnCollapsePanel { cursor:pointer; border:1px solid #fff; border-radius:6px; background:#6a1b9a; padding:2px 6px; font-size:12px; }
 
   #panelBody { padding:12px; overflow:auto; max-height:calc(86vh - 40px); }
   #panel.is-collapsed #panelBody { display:none; }
   #panel.is-collapsed { max-height:unset; }
+
+  /* Brand buttons */
+button {
+  background:#6a1b9a;  /* deep violet */
+  color:#fff;
+  border:none;
+  border-radius:6px;
+  padding:4px 8px;
+  font-weight:500;
+  cursor:pointer;
+  transition:background .2s;
+  
+}
+button:hover {
+  background:#8e24aa; /* lighter violet */
+}
+button:disabled {
+  background:#ccc;
+  color:#666;
+  cursor:default;
+}
+
 
   /* Legend */
   #legend {
@@ -62,7 +84,7 @@
   }
   #logHeader { display:flex; align-items:center; justify-content:space-between; padding:6px 8px; background:#f0f0f3; border-bottom:1px solid #e0e0e0; }
   #logBody { padding:6px 8px; }
-  #btnToggleLog { border:1px solid #ccc; border-radius:6px; background:#fff; padding:2px 6px; font-size:12px; cursor:pointer; }
+  #btnToggleLog { border:1px solid #ccc; border-radius:6px; background:#6a1b9a; padding:2px 6px; font-size:12px; cursor:pointer; }
 
   @media (max-width: 600px) {
     #panel { width:92vw; left:4vw; top:12px; }
@@ -77,13 +99,15 @@
 <div id="map"></div>
 
 <div id="panel">
-  <div id="panelHeader">
-    <div class="title">
-      <span>Filters & Tools</span>
-      <span class="badge">BUILD v13.1</span>
-    </div>
-    <button id="btnCollapsePanel" title="Collapse/Expand">Collapse</button>
+<div id="panelHeader">
+  <div class="title">
+    <img src="madscience-logo.png" alt="Mad Science" style="height:28px; margin-right:8px;">
+    <span>Filters & Tools</span>
+    <span class="badge">BUILD v13.1</span>
   </div>
+  <button id="btnCollapsePanel" title="Collapse/Expand">Collapse</button>
+</div>
+
 
   <div id="panelBody">
     <div class="filter-block" style="margin-bottom:8px;">
@@ -402,10 +426,21 @@ function toCSV(rows, header){
   return lines.join('\n');
 }
 function download(filename, text){
-  const blob=new Blob([text],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+  const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+
+  // Safari/iOS sometimes ignores click on detached nodes
+  document.body.appendChild(a);
+  a.click();
+  requestAnimationFrame(()=>{
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
 }
+
 
 /* Server call: status update only */
 async function updateRowInSheet({ keyField, keyValue, patch }){
@@ -479,6 +514,20 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('groupSelectAll').addEventListener('click',()=>{const s=document.getElementById('groupSel'); for(const o of s.options) o.selected=true; updateFilter()});
   document.getElementById('groupClear').addEventListener('click',()=>{const s=document.getElementById('groupSel'); for(const o of s.options) o.selected=false; updateFilter()});
 });
+  // CSV downloads
+  document.getElementById('btnDownloadAll').addEventListener('click', ()=>{
+    const csv = toCSV(DATA, HEADER);
+    const d   = new Date().toISOString().slice(0,10);
+    download(`schools-all-${d}.csv`, csv);
+  });
+
+  document.getElementById('btnDownloadFiltered').addEventListener('click', ()=>{
+    const filtered = DATA.filter(r => visiblePredicate(r)); // respects territory + filters
+    const csv = toCSV(filtered, HEADER);
+    const d   = new Date().toISOString().slice(0,10);
+    download(`schools-filtered-${d}.csv`, csv);
+  });
+
 </script>
 </body>
 </html>
