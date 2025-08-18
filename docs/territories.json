@@ -1,0 +1,27 @@
+[
+  {
+    "id": "maritimes",
+    "name": "Mad Science Maritimes (NS, NB, PE)",
+    "bbox": [-69.20, 43.00, -57.90, 48.30],
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [[
+        [-69.20,43.00],[-69.20,48.30],[-57.90,48.30],[-57.90,43.00],[-69.20,43.00]
+      ]]
+    },
+    "color": "#1976d2"
+  },
+  {
+    "id": "southern-mass-ri",
+    "name": "Mad Science Southern Mass & RI",
+    "note": "RI + MA counties: Bristol, Plymouth, Dukes, Nantucket, Suffolk, Norfolk, Barnstable (rectangular bbox approximation)",
+    "bbox": [-72.30, 40.90, -69.70, 42.80],
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [[
+        [-72.30,40.90],[-72.30,42.80],[-69.70,42.80],[-69.70,40.90],[-72.30,40.90]
+      ]]
+    },
+    "color": "#d26719"
+  }
+]

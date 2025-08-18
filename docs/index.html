@@ -3,588 +3,482 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NS Schools Map (Live v10B)</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<title>NS Schools Map (Live v13.1)</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-  html, body, #map { height: 100%; margin: 0; }
+  html, body, #map { height:100%; margin:0; }
+
+  /* Panel */
   #panel {
-    position: fixed; top: 20px; left: 20px; z-index: 9999; background: white;
-    padding: 12px; border: 1px solid #ccc; border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15); font-family: system-ui, sans-serif;
-    font-size: 13px; width: 360px; max-height: 84vh; overflow: auto;
+    position:fixed; top:20px; left:20px; z-index:9999; background:#fff;
+    padding:0; border:1px solid #ccc; border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.15);
+    font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    font-size:13px; width:360px; max-height:86vh; overflow:hidden;
   }
+  #panelHeader {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 10px; border-bottom:1px solid #e6e6e6; background:#f7f7f9;
+  }
+  #panelHeader .badge { background:#ffe08a; color:#7a4d00; font-weight:700; padding:2px 6px; border-radius:6px; }
+  #panelHeader .title { font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px; }
+  #btnCollapsePanel { cursor:pointer; border:1px solid #ccc; border-radius:6px; background:#fff; padding:2px 6px; font-size:12px; }
+
+  #panelBody { padding:12px; overflow:auto; max-height:calc(86vh - 40px); }
+  #panel.is-collapsed #panelBody { display:none; }
+  #panel.is-collapsed { max-height:unset; }
+
+  /* Legend */
   #legend {
-    position: fixed; bottom: 20px; left: 20px; z-index: 9999; background: white;
-    padding: 10px 12px; border: 1px solid #ccc; border-radius: 10px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15); font-family: system-ui, sans-serif; font-size: 13px;
+    position:fixed; bottom:20px; left:20px; z-index:9998; background:#fff;
+    padding:10px 12px; border:1px solid #ccc; border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.15); font-family:system-ui; font-size:13px;
   }
-  button { cursor: pointer; }
+  .swatch{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-2px;}
+  .list-item{padding:6px 8px;border-bottom:1px solid #eee;cursor:pointer;}
+  .list-item:hover{background:#f6f8fa;}
+  .leaflet-interactive.territory-boundary{pointer-events:none;}
+  .muted{color:#666;}
+  .row{display:flex;gap:6px;}
+  .row>*{flex:1;}
+  .popup-row{margin-top:6px}
+  .popup-row select{padding:2px 4px; font-size:12px;}
+  .popup-row button{padding:2px 6px; font-size:12px; cursor:pointer;}
+
+  /* Toast */
+  #toast {
+    position:fixed;right:20px;bottom:20px;z-index:10000;
+    padding:10px 12px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.15);
+    font:13px/1.3 system-ui;display:none;max-width:50vw;
+  }
+
+  /* Log (minimizable, doesn’t cover legend) */
+  #log {
+    position:fixed; right:20px; bottom:80px; z-index:10000;
+    min-width:260px; max-width:45vw; max-height:30vh; overflow:auto;
+    border-radius:8px; border:1px solid #e0e0e0; background:#fafafa; color:#333;
+    font:12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
+  }
+  #logHeader { display:flex; align-items:center; justify-content:space-between; padding:6px 8px; background:#f0f0f3; border-bottom:1px solid #e0e0e0; }
+  #logBody { padding:6px 8px; }
+  #btnToggleLog { border:1px solid #ccc; border-radius:6px; background:#fff; padding:2px 6px; font-size:12px; cursor:pointer; }
+
+  @media (max-width: 600px) {
+    #panel { width:92vw; left:4vw; top:12px; }
+    #panelBody { max-height:calc(70vh - 40px); }
+    #legend { left:12px; bottom:12px; }
+    #toast { right:12px; bottom:12px; max-width:75vw; }
+    #log { right:12px; bottom:80px; max-width:75vw; }
+  }
 </style>
 </head>
 <body>
 <div id="map"></div>
 
 <div id="panel">
-  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
-    <div style="font-weight:700; font-size:14px;">Filters & Tools</div>
-    <button id="btnToggleList">List View: OFF</button>
+  <div id="panelHeader">
+    <div class="title">
+      <span>Filters & Tools</span>
+      <span class="badge">BUILD v13.1</span>
+    </div>
+    <button id="btnCollapsePanel" title="Collapse/Expand">Collapse</button>
   </div>
 
-  <div id="listContainer" style="display:none; margin:10px 0; border:1px solid #ddd; border-radius:8px; max-height:220px; overflow:auto;">
-    <div style="padding:6px 8px; font-weight:600; border-bottom:1px solid #eee;">Schools</div>
-    <div id="schoolList" style="max-height:180px; overflow:auto;"></div>
-  </div>
+  <div id="panelBody">
+    <div class="filter-block" style="margin-bottom:8px;">
+      <label for="territorySel"><strong>Territory:</strong></label><br>
+      <select id="territorySel">
+        <option value="">-- Select a territory --</option>
+      </select>
+    </div>
 
-  <div style="margin-bottom:8px;">
-    <div style="font-weight:600; margin-bottom:4px;">Status</div>
-    <label><input type="checkbox" class="statusChk" value="none" checked> None</label><br>
-<label><input type="checkbox" class="statusChk" value="recent" checked> Recent</label><br>
-<label><input type="checkbox" class="statusChk" value="current" checked> Current</label><br>
-<label><input type="checkbox" class="statusChk" value="staff" checked> Staff</label>
+    <div style="margin-bottom:8px;">
+      <div style="font-weight:600; margin-bottom:4px;">Status</div>
+      <label><input type="checkbox" class="statusChk" value="none" checked> None</label><br>
+      <label><input type="checkbox" class="statusChk" value="recent" checked> Recent</label><br>
+      <label><input type="checkbox" class="statusChk" value="current" checked> Current</label><br>
+      <label><input type="checkbox" class="statusChk" value="staff" checked> Staff</label>
+    </div>
 
-  </div>
+    <div style="margin-bottom:8px;">
+      <div style="font-weight:600; margin-bottom:4px;">Group</div>
+      <select id="groupSel" multiple size="7" style="width:100%;"></select>
+      <div class="row" style="margin-top:6px;">
+        <button id="groupClear" type="button">Clear</button>
+        <button id="groupSelectAll" type="button">Select all</button>
+        <button id="btnToggleList" type="button">List View: OFF</button>
+      </div>
+    </div>
 
-  <div style="margin-bottom:8px;">
-    <div style="font-weight:600; margin-bottom:4px;">Group</div>
-    <select id="groupSel" multiple size="7" style="width:100%;"></select>
-    <div style="display:flex; gap:6px; margin-top:6px;">
-      <button id="groupClear">Clear</button>
-      <button id="groupSelectAll">Select all</button>
+    <div style="margin-bottom:8px;">
+      <div style="font-weight:600; margin-bottom:4px;">Search</div>
+      <input id="searchBox" type="text" placeholder="School or address..." style="width:100%; padding:6px;">
+      <div class="row" style="margin-top:6px;">
+        <button id="btnSearch" type="button">Apply</button>
+        <button id="btnClearSearch" type="button">Clear</button>
+        <button id="btnZoomFirst" type="button">Zoom to first</button>
+      </div>
+    </div>
+
+    <div id="listContainer" style="display:none; margin:10px 0; border:1px solid #ddd; border-radius:8px; max-height:220px; overflow:auto;">
+      <div style="padding:6px 8px; font-weight:600; border-bottom:1px solid #eee;">Schools</div>
+      <div id="schoolList" style="max-height:180px; overflow:auto;"></div>
+    </div>
+
+    <hr style="margin:10px 0;">
+
+    <div class="row" style="align-items:center; flex-wrap:wrap;">
+      <button id="btnDownloadAll" type="button" style="font-weight:700;">Download CSV (All)</button>
+      <button id="btnDownloadFiltered" type="button" style="font-weight:700;">Download Filtered CSV</button>
     </div>
   </div>
-
-  <div style="margin-bottom:8px;">
-    <div style="font-weight:600; margin-bottom:4px;">Search</div>
-    <input id="searchBox" type="text" placeholder="School or address..." style="width:100%; padding:6px;">
-    <div style="display:flex; gap:6px; margin-top:6px;">
-      <button id="btnSearch">Apply</button>
-      <button id="btnClearSearch">Clear</button>
-      <button id="btnZoomFirst">Zoom to first</button>
-    </div>
-  </div>
-
-  <hr style="margin:10px 0;">
-  <div style="font-weight:700; margin-bottom:6px;">Add a School/Location</div>
-  <div>Toggle “Add Mode” to type an address (or click the map). Geocode to place the pin at the typed address.</div>
-  <div style="margin-top:6px; display:flex; flex-direction:column; gap:6px;">
-    <button id="btnAddMode">Add Mode: OFF</button>
-    <input id="addAddress" type="text" placeholder="123 Main St, Town, NS" style="width:100%; padding:6px;">
-    <div style="display:flex; gap:6px;">
-      <button id="btnGeocode">Geocode address</button>
-      <button id="btnUseClick">Use last clicked</button>
-    </div>
-  </div>
-
-  <hr style="margin:10px 0;">
-  <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-    <button id="btnUndoDelete" title="Undo the most recent delete">Undo Delete</button>
-    <button id="btnDownloadAll" style="font-weight:700;">Download CSV (All)</button>
-    <button id="btnDownloadFiltered" style="font-weight:700;">Download Filtered CSV</button>
-  </div>
-
-  <div id="toast" style="display:none; margin-top:8px; padding:6px 8px; background:#e8f5e9; color:#2e7d32; border:1px solid #c8e6c9; border-radius:6px;">Saved!</div>
 </div>
 
 <div id="legend">
   <div style="font-weight:700; margin-bottom:6px;">Status Legend</div>
-  <div><span style="display:inline-block;width:12px;height:12px;background:#808080;margin-right:6px;border-radius:50%;"></span> None</div>
-  <div><span style="display:inline-block;width:12px;height:12px;background:#1f77b4;margin-right:6px;border-radius:50%;"></span> Recent</div>
-  <div><span style="display:inline-block;width:12px;height:12px;background:#2ca02c;margin-right:6px;border-radius:50%;"></span> Current</div>
-  <div><span style="display:inline-block;width:12px;height:12px;background:#800080;margin-right:6px;border-radius:50%;"></span> Staff</div>
+  <div><span class="swatch" style="background:#808080;"></span> None</div>
+  <div><span class="swatch" style="background:#1f77b4;"></span> Recent</div>
+  <div><span class="swatch" style="background:#2ca02c;"></span> Current</div>
+  <div><span class="swatch" style="background:#800080;"></span> Staff</div>
 </div>
 
+<div id="toast"></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<div id="log">
+  <div id="logHeader">
+    <strong>Log</strong>
+    <button id="btnToggleLog" aria-expanded="true">Minimize</button>
+  </div>
+  <div id="logBody"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-/* ===== Config ===== */
-const SHEETS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CMl0KcbjCZDM5d1TlX8BaAqT8A2uBd5eiHUEwVmYFNDMhM6G51Ele-lQ/exec"; // <— paste your URL
-const COLOR = {
-  none:    "#808080",
-  recent:  "#1f77b4",
-  current: "#2ca02c",
-  staff:   "#800080" // purple
-};
+/* ===== CONFIG — SET THESE ===== */
+const SHEETS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CMl0KcbjCZDM5d1TlX8BaAqT8A2uBd5eiHUEwVmYFNDMhM6G51Ele-lQ/exec";  // GET CSV
+const WRITE_ENDPOINT  = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CMl0KcbjCZDM5d1TlX8BaAqT8A2uBd5eiHUEwVmYFNDMhM6G51Ele-lQ/exec";  // POST update (status only)
+const WRITE_SECRET    = "123456pooydiapers";
+const SHEET_TAB_NAME  = "Sheet1";
+const TERRITORIES_URL = "territories.json";
+const COLOR = { none:"#808080", recent:"#1f77b4", current:"#2ca02c", staff:"#800080" };
 
-
-/* ===== Map init ===== */
+/* ===== Map ===== */
 const map = L.map('map').setView([45.2, -62.99], 7);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19}).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
 
-/* ===== State ===== */
-let DATA = [];              // live records
-let markers = [];           // [{marker, rec}]
-let lastClickLL = null;
-let UNDO_STACK = [];
-let moveIndex = null;
-let LIST_ON = false;
-let GROUPS = [];
-
-/* ===== Utilities ===== */
-function uuid() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = crypto.getRandomValues(new Uint8Array(1))[0] & 15;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+/* ===== Log/Toast ===== */
+function log(msg){
+  const el=document.getElementById('logBody');
+  const t=new Date().toLocaleTimeString();
+  el.insertAdjacentHTML('beforeend', `<div><b>${t}</b> ${msg}</div>`);
+  el.scrollTop=el.scrollHeight;
 }
-function normalizeStatus(s){
-  const v = String(s || '').trim().toLowerCase();
-  if (v === 'recent')  return 'recent';
-  if (v === 'current' || v === 'active' || v === 'both') return 'current';
-  if (v === 'staff')   return 'staff';
-  return 'none';
-}
-function showToast(msg="Saved!") {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.style.display = "block";
-  setTimeout(() => t.style.display = "none", 1600);
-}
-function toCSVLines(rows, headers) {
-  const lines = [headers.join(",")];
-  rows.forEach(row => {
-    const vals = headers.map(h => {
-      let v = row[h] == null ? "" : String(row[h]).replace(/"/g,'""');
-      if (/[",\n]/.test(v)) v = '"' + v + '"';
-      return v;
-    });
-    lines.push(vals.join(","));
-  });
-  return lines;
-}
-function downloadCSV(name, rows) {
-  const HEADERS = ["id","School","Address","Group","Phone","Email","lat","lon","Status"];
-  const lines = toCSVLines(rows, HEADERS);
-  const blob = new Blob([lines.join("\n")], {type:"text/csv"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a"); a.href = url; a.download = name;
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+function showToast(msg, kind='ok'){
+  const t=document.getElementById('toast');
+  if(kind==='error'){t.style.background='#fdecea';t.style.border='1px solid #f5c2c0';t.style.color='#b71c1c';}
+  else {t.style.background='#e8f5e9';t.style.border='1px solid #c8e6c9';t.style.color='#2e7d32';}
+  t.textContent=msg; t.style.display='block'; clearTimeout(t._hideTimer);
+  t._hideTimer=setTimeout(()=>{t.style.display='none';},3200);
 }
 
-/* ===== Backend calls (includes apiGetAll) ===== */
-async function apiGetAll() {
-  const res = await fetch(SHEETS_ENDPOINT, {method:"GET"});
-  const json = await res.json();
-  return json.data || [];
-}
-async function saveRecord(rec) {
-  const payload = {op:"upsert", record: rec};
-  try {
-    await fetch(SHEETS_ENDPOINT, {
-      method: "POST",
-      headers: {"Content-Type":"text/plain;charset=utf-8"},
-      body: JSON.stringify(payload)
-    });
-  } catch (e) { console.warn("Save error", e); }
-}
-async function deleteRecordById(id) {
-  const payload = {op:"delete", id};
-  try {
-    await fetch(SHEETS_ENDPOINT, {
-      method: "POST",
-      headers: {"Content-Type":"text/plain;charset=utf-8"},
-      body: JSON.stringify(payload)
-    });
-  } catch (e) { console.warn("Delete error", e); }
-}
-
-/* ===== Filters + list ===== */
-function groupSelInit() {
-  const sel = document.getElementById('groupSel');
-  sel.innerHTML = '';
-  const uniq = new Set();
-  DATA.forEach(r => { if (r.Group && String(r.Group).trim() !== '') uniq.add(String(r.Group)); });
-  GROUPS = Array.from(uniq).sort();
-  GROUPS.forEach(g => {
-    const opt = document.createElement('option');
-    opt.value = g; opt.textContent = g; opt.selected = false;
-    sel.appendChild(opt);
-  });
-}
-function visiblePredicate(rec) {
-  const statuses = new Set(Array.from(document.querySelectorAll('.statusChk'))
-    .filter(x => x.checked).map(x => x.value));
-  const groupsSel = document.getElementById('groupSel');
-  const groups = new Set(groupsSel ? Array.from(groupsSel.selectedOptions).map(o => o.value) : []);
-  const q = (document.getElementById('searchBox').value || '').trim().toLowerCase();
-
-  let show = statuses.has(normalizeStatus(rec.Status));
-  if (show && groups.size > 0) show = groups.has(rec.Group || '');
-  if (show && q) {
-    const hay = ((rec.School||'') + ' ' + (rec.Address||'')).toLowerCase();
-    show = hay.includes(q);
-  }
-  return show;
-}
-function rebuildList() {
-  const wrap = document.getElementById('schoolList');
-  if (!wrap) return;
-  wrap.innerHTML = '';
-  if (!LIST_ON) return;
-
-  const rows = [];
-  DATA.forEach((rec, idx) => {
-    if (!Number.isFinite(rec.lat) || !Number.isFinite(rec.lon)) return;
-    if (!visiblePredicate(rec)) return;
-    rows.push({rec, idx});
-  });
-  rows.sort((a, b) => String(a.rec.School||'').localeCompare(String(b.rec.School||'')));
-
-  if (!rows.length) {
-    const empty = document.createElement('div');
-    empty.textContent = "No schools match the current filters.";
-    empty.style.cssText = "padding:8px; color:#666;";
-    wrap.appendChild(empty);
-    return;
-  }
-
-  rows.forEach(({rec, idx}) => {
-    const item = document.createElement('div');
-    item.style.cssText = "padding:8px; border-bottom:1px solid #eee; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:8px;";
-    const left = document.createElement('div');
-    const phoneLine = rec.Phone ? `<div style="font-size:12px; color:#666;">📞 ${rec.Phone}</div>` : '';
-    const emailLine = rec.Email ? `<div style="font-size:12px; color:#666;">✉️ ${rec.Email}</div>` : '';
-    left.innerHTML = `<div style="font-weight:600">${rec.School || ''}</div>
-                      <div style="font-size:12px; color:#666;">${rec.Group || ''}</div>
-                      <div style="font-size:12px; color:#666;">${rec.Address || ''}</div>
-                      ${phoneLine}${emailLine}`;
-    const dot = document.createElement('span');
-    dot.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:50%;background:${COLOR[normalizeStatus(rec.Status)]}; flex:0 0 auto;`;
-    item.appendChild(left);
-    item.appendChild(dot);
-    item.onclick = () => {
-      const m = markers[idx] && markers[idx].marker;
-      if (m) {
-        const ll = m.getLatLng();
-        map.setView(ll, 14);
-        m.openPopup();
-      }
-    };
-    wrap.appendChild(item);
-  });
-}
-
-/* ===== Geocode (client) ===== */
-async function geocodeClient(q) {
-  if (!q) return null;
-  const params = new URLSearchParams({
-    format: "jsonv2",
-    q,
-    countrycodes: "ca",
-    viewbox: "-66.5,47.2,-59.0,43.0",
-    bounded: "1",
-    limit: "1",
-    addressdetails: "0"
-  });
-  const url = "https://nominatim.openstreetmap.org/search?" + params.toString();
-  try {
-    const res = await fetch(url, { headers: { "Accept": "application/json" } });
-    if (!res.ok) return null;
-    const json = await res.json();
-    if (Array.isArray(json) && json.length > 0) {
-      const r = json[0];
-      const lat = Number(r.lat), lon = Number(r.lon);
-      if (Number.isFinite(lat) && Number.isFinite(lon)) return {lat, lon};
-    }
-  } catch (_) {}
-  return null;
-}
-
-/* ===== Markers ===== */
-function addCircleFor(rec, idx) {
-  const color = COLOR[normalizeStatus(rec.Status)];
-  const safeTel = (rec.Phone || '').replace(/[^+\d]/g,'');
-  const firstEmail = (rec.Email || '').split(/[,\s;]+/).filter(Boolean)[0] || '';
-  const phoneLine = rec.Phone ? `<div style="font-size:12px;">📞 <a href="tel:${safeTel}">${rec.Phone}</a></div>` : '';
-  const emailLine = rec.Email ? `<div style="font-size:12px;">✉️ <a href="mailto:${firstEmail}">${rec.Email}</a></div>` : '';
-  const html = `
-    <div style='min-width:300px'>
-      <div style="font-weight:700">${rec.School || ''}</div>
-      <div style="font-size:12px; margin:4px 0;">${rec.Address || ''}</div>
-      <div style="font-size:12px; color:#666;">${rec.Group || ''}</div>
-      ${phoneLine}${emailLine}
-      <hr/>
-      <div style="font-size:12px; margin-bottom:6px;">Set status:</div>
-      <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
-        <button onclick="window._setStatus(${idx}, 'none')" style="padding:4px 8px">None</button>
-        <button onclick="window._setStatus(${idx}, 'recent')" style="padding:4px 8px">Recent</button>
-        <button onclick="window._setStatus(${idx}, 'current')" style="padding:4px 8px">Current</button>
-	<button onclick="window._setStatus(${idx}, 'staff')" style="padding:4px 8px">Staff</button>
-      </div>
-      <div style="display:flex; gap:6px; justify-content:flex-end;">
-        <button onclick="window._move(${idx})" style="padding:4px 8px;">Move pin</button>
-        <button onclick="window._delete(${idx})" style="padding:4px 8px; color:#b00020;">Delete</button>
-      </div>
-    </div>`;
-  const cm = L.circleMarker([rec.lat, rec.lon], {
-    radius: 7, color: color, fillColor: color, fillOpacity: 0.9, weight: 2
-  }).bindPopup(html);
-  cm.addTo(map);
-  markers.push({marker: cm, rec});
-}
-function rebuildMarkers() {
-  markers.forEach(m => map.removeLayer(m.marker));
-  markers = [];
-  DATA.forEach((rec, idx) => {
-    if (Number.isFinite(rec.lat) && Number.isFinite(rec.lon)) addCircleFor(rec, idx);
-  });
-  applyFilters();
-}
-
-/* ===== Actions ===== */
-window._setStatus = async function(idx, status) {
-  if (!DATA[idx]) return;
-  DATA[idx].Status = normalizeStatus(status);
-  const m = markers[idx] && markers[idx].marker;
-  if (m) m.setStyle({color: COLOR[DATA[idx].Status], fillColor: COLOR[DATA[idx].Status]});
-  applyFilters();
-  saveRecord(DATA[idx]);
-};
-window._delete = async function(idx) {
-  if (!DATA[idx]) return;
-  const rec = DATA[idx];
-  UNDO_STACK.push({type:'delete', rec: {...rec}, idx});
-  DATA.splice(idx, 1);
-  await deleteRecordById(rec.id);
-  rebuildMarkers();
-  showToast("Deleted. Click Undo Delete to restore.");
-};
-window._move = function(idx) {
-  moveIndex = idx;
-  showToast("Move mode: click on the map to set new location.");
-};
-
-/* ===== Filters/Search ===== */
-function applyFilters() {
-  let firstVisible = null;
-  markers.forEach(({marker, rec}) => {
-    const show = visiblePredicate(rec);
-    if (show) {
-      marker.addTo(map);
-      if (!firstVisible) firstVisible = marker;
-    } else {
-      map.removeLayer(marker);
-    }
-  });
-  rebuildList();
-  return firstVisible;
-}
-function zoomFirst() {
-  const first = applyFilters();
-  if (first) {
-    const ll = first.getLatLng();
-    map.setView(ll, 14);
-    first.openPopup();
-  }
-}
-
-/* ===== Add Mode / Move / Undo ===== */
-let addMode = false;
-function toggleAddMode() {
-  addMode = !addMode;
-  document.getElementById('btnAddMode').textContent = "Add Mode: " + (addMode ? "ON" : "OFF");
-}
-function undoDelete() {
-  if (!UNDO_STACK.length) { showToast("Nothing to undo."); return; }
-  const action = UNDO_STACK.pop();
-  if (action.type === 'delete') {
-    const pos = Math.min(action.idx, DATA.length);
-    DATA.splice(pos, 0, action.rec);
-    saveRecord(action.rec); // reinsert in backend
-    rebuildMarkers();
-    showToast("Restored.");
-  }
-}
-map.on('click', async (e) => {
-  lastClickLL = e.latlng;
-  if (moveIndex !== null) {
-    const idx = moveIndex; moveIndex = null;
-    if (DATA[idx]) {
-      DATA[idx].lat = Number(e.latlng.lat.toFixed(6));
-      DATA[idx].lon = Number(e.latlng.lng.toFixed(6));
-      const m = markers[idx] && markers[idx].marker;
-      if (m) m.setLatLng(e.latlng);
-      applyFilters();
-      saveRecord(DATA[idx]);
-      showToast("Moved.");
-    }
-    return;
-  }
-  if (!addMode) return;
-  openAddForm(lastClickLL.lat, lastClickLL.lng, "", "", "", "", "none");
+/* Log minimize */
+document.getElementById('btnToggleLog').addEventListener('click',()=>{
+  const btn = document.getElementById('btnToggleLog');
+  const body= document.getElementById('logBody');
+  const isOpen = btn.getAttribute('aria-expanded') === 'true';
+  if(isOpen){ body.style.display='none'; btn.textContent='Expand'; btn.setAttribute('aria-expanded','false'); }
+  else { body.style.display='block'; btn.textContent='Minimize'; btn.setAttribute('aria-expanded','true'); }
 });
 
-async function geocodeClient(q) {
-  if (!q) return null;
-  const params = new URLSearchParams({
-    format: "jsonv2", q, countrycodes: "ca",
-    viewbox: "-66.5,47.2,-59.0,43.0", bounded: "1",
-    limit: "1", addressdetails: "0"
+/* Panel collapse (session-persisted) */
+(function setupPanelCollapse(){
+  const panel = document.getElementById('panel');
+  const btn = document.getElementById('btnCollapsePanel');
+  const KEY = 'panelCollapsed';
+  function apply(state){ panel.classList.toggle('is-collapsed', !!state); btn.textContent = state ? 'Expand' : 'Collapse'; btn.setAttribute('aria-expanded', String(!state)); }
+  const saved = sessionStorage.getItem(KEY) === '1';
+  apply(saved);
+  btn.addEventListener('click',()=>{
+    const newState = !panel.classList.contains('is-collapsed');
+    sessionStorage.setItem(KEY, newState ? '1' : '0');
+    apply(newState);
   });
-  const url = "https://nominatim.openstreetmap.org/search?" + params.toString();
-  try {
-    const res = await fetch(url, { headers: { "Accept": "application/json" } });
-    if (!res.ok) return null;
-    const json = await res.json();
-    if (Array.isArray(json) && json.length > 0) {
-      const r = json[0];
-      const lat = Number(r.lat), lon = Number(r.lon);
-      if (Number.isFinite(lat) && Number.isFinite(lon)) return {lat, lon};
-    }
-  } catch (_) {}
-  return null;
-}
-
-function openAddForm(lat, lon, usedAddress, usedGroup, usedPhone, usedEmail, usedStatus) {
-  const form = document.createElement('div');
-  form.style.cssText = "position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; padding:12px; border:1px solid #ccc; border-radius:10px; z-index:10000; width:380px; box-shadow:0 2px 8px rgba(0,0,0,0.2); font-family:system-ui, sans-serif; font-size:13px;";
-  form.innerHTML = `
-    <div style="font-weight:700; margin-bottom:8px;">Add School/Location</div>
-    <label>School<br><input id="f_school" style="width:100%" placeholder="Name"></label><br><br>
-    <label>Address<br><input id="f_address" style="width:100%" placeholder="Street, Town, NS" value="${usedAddress || ''}"></label>
-    <div style="display:flex; gap:6px; margin:6px 0 8px 0;">
-      <button id="f_geocode">Geocode</button>
-      <span id="f_geo_status" style="font-size:12px; color:#666;"></span>
-    </div>
-    <label>Group<br><input id="f_group" style="width:100%" placeholder="e.g., HRCE / AVRCE / CSAP / Private" value="${usedGroup || ''}"></label><br><br>
-    <label>Phone<br><input id="f_phone" style="width:100%" placeholder="+1 902 …" value="${usedPhone || ''}"></label><br><br>
-    <label>Email(s)<br><input id="f_email" style="width:100%" placeholder="one or more, separated by ;" value="${usedEmail || ''}"></label><br><br>
-    <label>Status<br>
-      <select id="f_status" style="width:100%">
-        <option value="none" ${usedStatus==='none'?'selected':''}>None</option>
-        <option value="recent" ${usedStatus==='recent'?'selected':''}>Recent</option>
-        <option value="current" ${usedStatus==='current'?'selected':''}>Current</option>
-	<option value="staff" ${usedStatus==='staff'?'selected':''}>Staff</option>
-      </select>
-    </label><br><br>
-    <div>Lat: <span id="f_lat">${Number(lat).toFixed(6)}</span> &nbsp; Lon: <span id="f_lon">${Number(lon).toFixed(6)}</span></div>
-    <div style="display:flex; gap:8px; margin-top:10px; justify-content:flex-end;">
-      <button id="f_cancel">Cancel</button>
-      <button id="f_save">Save</button>
-    </div>
-  `;
-  document.body.appendChild(form);
-
-  form.querySelector('#f_geocode').onclick = async () => {
-    const q = form.querySelector('#f_address').value || '';
-    form.querySelector('#f_geo_status').textContent = "Looking up…";
-    const ll = await geocodeClient(q);
-    if (ll) {
-      form.querySelector('#f_lat').textContent = ll.lat.toFixed(6);
-      form.querySelector('#f_lon').textContent = ll.lon.toFixed(6);
-      form.querySelector('#f_geo_status').textContent = "Found ✓";
-    } else {
-      form.querySelector('#f_geo_status').textContent = "Not found (using map/cursor)";
-    }
-  };
-  form.querySelector('#f_cancel').onclick = () => form.remove();
-  form.querySelector('#f_save').onclick = async () => {
-    const rec = {
-      id: uuid(),
-      School: form.querySelector('#f_school').value || 'New Location',
-      Address: form.querySelector('#f_address').value || '',
-      Group: form.querySelector('#f_group').value || '',
-      Phone: form.querySelector('#f_phone').value || '',
-      Email: form.querySelector('#f_email').value || '',
-      lat: Number(form.querySelector('#f_lat').textContent),
-      lon: Number(form.querySelector('#f_lon').textContent),
-      Status: normalizeStatus(form.querySelector('#f_status').value || 'none')
-    };
-    DATA.push(rec);
-    addCircleFor(rec, DATA.length - 1);
-    // add group option if new
-    if (rec.Group) {
-      const sel = document.getElementById('groupSel');
-      const exists = Array.from(sel.options).some(o => o.value === rec.Group);
-      if (!exists) {
-        const opt = document.createElement('option');
-        opt.value = rec.Group; opt.textContent = rec.Group; opt.selected = false;
-        sel.appendChild(opt);
-      }
-    }
-    applyFilters();
-    form.remove();
-    showToast("Added!");
-    saveRecord(rec);
-  };
-}
-
-/* ===== Wiring ===== */
-document.getElementById('btnToggleList').onclick = () => {
-  LIST_ON = !LIST_ON;
-  const btn = document.getElementById('btnToggleList');
-  const box = document.getElementById('listContainer');
-  btn.textContent = "List View: " + (LIST_ON ? "ON" : "OFF");
-  box.style.display = LIST_ON ? "block" : "none";
-  if (LIST_ON) rebuildList();
-};
-document.getElementById('groupClear').onclick = () => {
-  const sel = document.getElementById('groupSel');
-  Array.from(sel.options).forEach(o => o.selected = false);
-  applyFilters();
-};
-document.getElementById('groupSelectAll').onclick = () => {
-  const sel = document.getElementById('groupSel');
-  Array.from(sel.options).forEach(o => o.selected = true);
-  applyFilters();
-};
-Array.from(document.querySelectorAll('.statusChk')).forEach(cb =>
-  cb.addEventListener('change', () => applyFilters())
-);
-document.getElementById('groupSel').addEventListener('change', () => applyFilters());
-document.getElementById('btnSearch').onclick = () => applyFilters();
-document.getElementById('btnClearSearch').onclick = () => { document.getElementById('searchBox').value=''; applyFilters(); };
-document.getElementById('btnZoomFirst').onclick = () => zoomFirst();
-document.getElementById('btnDownloadAll').onclick = () => downloadCSV("ns_schools_all.csv", DATA);
-document.getElementById('btnDownloadFiltered').onclick = () => {
-  const filtered = DATA.filter(r => Number.isFinite(r.lat) && Number.isFinite(r.lon) && visiblePredicate(r));
-  downloadCSV("ns_schools_filtered.csv", filtered);
-};
-document.getElementById('btnUndoDelete').onclick = () => undoDelete();
-document.getElementById('btnAddMode').onclick = () => toggleAddMode();
-
-document.getElementById('btnGeocode').onclick = async () => {
-  if (!addMode) toggleAddMode();
-  const addr = (document.getElementById('addAddress').value || '').trim();
-  if (!addr) { document.getElementById('addAddress').focus(); return; }
-  const ll = await geocodeClient(addr);
-  const base = ll || {lat: map.getCenter().lat, lon: map.getCenter().lng};
-  openAddForm(base.lat, base.lon, addr, "", "", "", "none");
-};
-document.getElementById('btnUseClick').onclick = () => {
-  if (!addMode) toggleAddMode();
-  const base = lastClickLL ? {lat: lastClickLL.lat, lon: lastClickLL.lng} : {lat: map.getCenter().lat, lon: map.getCenter().lng};
-  const addr = (document.getElementById('addAddress').value || '').trim();
-  openAddForm(base.lat, base.lon, addr, "", "", "", "none");
-};
-
-/* ===== Boot: load data from Sheets, render ===== */
-(async function init() {
-  try {
-    const raw = await apiGetAll();  // <<— THIS WAS MISSING / MIS-ORDERED
-    DATA = raw.map(r => ({
-  id: String(r.id || ''),            // keep blank if blank
-  School: String(r.School || ''),
-  Address: String(r.Address || ''),
-  Group: String(r.Group || ''),
-  Phone: String(r.Phone || ''),
-  Email: String(r.Email || ''),
-  lat: Number(r.lat),
-  lon: Number(r.lon),
-  Status: normalizeStatus(r.Status)
-}));
-
-   
-    groupSelInit();
-    DATA.forEach((rec, idx) => {
-      if (Number.isFinite(rec.lat) && Number.isFinite(rec.lon)) addCircleFor(rec, idx);
-    });
-    applyFilters();
-  } catch (e) {
-    console.error("Init failed:", e);
-    alert("Failed to load data from the Sheets endpoint. Check the console for details.");
-  }
 })();
+
+/* Safety */
+window.addEventListener('error', (e)=>{ log('Error: '+ (e && e.message ? e.message : e)); showToast('JS error: '+(e && e.message ? e.message : 'unknown'), 'error'); });
+window.addEventListener('unhandledrejection', (e)=>{ log('Promise rejection: '+ (e && e.reason ? e.reason : e)); showToast('Unhandled rejection', 'error'); });
+
+/* Utilities */
+async function fetchWithTimeout(url, options={}, ms=15000){
+  const ctrl = new AbortController();
+  const id = setTimeout(()=>ctrl.abort(), ms);
+  try{ return await fetch(url, { ...options, signal: ctrl.signal }); }
+  finally{ clearTimeout(id); }
+}
+
+/* CSV */
+function splitCSVLine(line){const out=[];let cur='',q=false;for(let i=0;i<line.length;i++){const c=line[i];if(c==='"'){if(q&&line[i+1]==='"'){cur+='"';i++}else q=!q}else if(c===','&&!q){out.push(cur);cur=''}else cur+=c}out.push(cur);return out}
+function parseCSV(text){const clean=text.replace(/^\uFEFF/,'').replace(/\r\n/g,'\n');const lines=clean.split('\n').filter(l=>l.trim());if(!lines.length)return{header:[],rows:[]};const header=splitCSVLine(lines[0]).map(h=>h.trim());const rows=lines.slice(1).map(line=>{const cols=splitCSVLine(line);const rec={};header.forEach((h,i)=>rec[h]=(cols[i]??'').trim());return rec});return{header,rows}}
+
+/* Geometry */
+function bboxOfRing(r){let w=Infinity,s=Infinity,e=-Infinity,n=-Infinity;for(const[lon,lat]of r){if(lon<w)w=lon;if(lon>e)e=lon;if(lat<s)s=lat;if(lat>n)n=lat}return[w,s,e,n]}
+function expandBBox(b,a){if(!b)return a.slice();if(a[0]<b[0])b[0]=a[0];if(a[1]<b[1])b[1]=a[1];if(a[2]>b[2])b[2]=a[2];if(a[3]>b[3])b[3]=a[3];return b}
+function bboxOfPolygon(p){return bboxOfRing(p[0])}
+function bboxOfGeometry(g){if(!g)return null;if(g.type==='Polygon')return bboxOfPolygon(g.coordinates);if(g.type==='MultiPolygon'){let b=null;for(const p of g.coordinates)b=expandBBox(b,bboxOfPolygon(p));return b}return null}
+function pointInRing(x,y,ring){let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i){const[xi,yi]=ring[i],[xj,yj]=ring[j];const inter=((yi>y)!=(yj>y))&&(x<(xj-xi)*(y-yi)/((yj-yi)||1e-12)+xi);if(inter)inside=!inside}return inside}
+function pointInGeometry(x,y,g){if(!g)return false;if(g.type==='Polygon'){const r=g.coordinates;if(!pointInRing(x,y,r[0]))return false;for(let i=1;i<r.length;i++)if(pointInRing(x,y,r[i]))return false;return true}if(g.type==='MultiPolygon'){for(const p of g.coordinates){const r=p;if(!pointInRing(x,y,r[0]))continue;let ok=true;for(let i=1;i<r.length;i++)if(pointInRing(x,y,r[i])){ok=false;break}if(ok)return true}}return false}
+
+/* State */
+let DATA=[], HEADER=[], markers=[], LIST_ON=false;
+let GROUPS=[], TERRITORIES=[], currentTerritory=null, territoryLayer=null;
+
+/* Normalize */
+function normalizeRecords(rows){
+  const latKeys=['lat','Lat','LAT','latitude','Latitude','LATITUDE','y','Y'];
+  const lonKeys=['lon','Lon','LON','lng','Lng','LNG','long','Long','LONG','longitude','Longitude','LONGITUDE','x','X'];
+  rows.forEach(r=>{
+    let lat=null,lon=null;
+    for(const k of latKeys) if(r[k]&&lat===null){const v=parseFloat(r[k]); if(Number.isFinite(v)) lat=v}
+    for(const k of lonKeys) if(r[k]&&lon===null){const v=parseFloat(r[k]); if(Number.isFinite(v)) lon=v}
+    if(Number.isFinite(lat)) r.lat=lat;
+    if(Number.isFinite(lon)) r.lon=lon;
+    const raw=(r.active??r.Active??r.ACTIVE??'').toString().trim().toUpperCase();
+    r.active = raw==='' ? true : !(raw==='FALSE'||raw==='0'||raw==='NO'||raw==='N');
+    if(r.Id && !Number.isFinite(r.Id)){const n=parseFloat(r.Id); if(Number.isFinite(n)) r.Id=n}
+  });
+}
+function isValidLatLon(lat,lon){return Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180}
+function normalizeStatus(s){s=(s||'').toLowerCase().trim(); if(!['none','recent','current','staff'].includes(s)) s='none'; return s}
+function getStatusColor(r){return COLOR[normalizeStatus(r.Status||r.status)]||COLOR.none}
+
+/* Territories */
+async function loadTerritories(){
+  const res = await fetch(TERRITORIES_URL, {cache:'no-store'});
+  if(!res.ok) throw new Error('Territories HTTP '+res.status);
+  const list = await res.json();
+  TERRITORIES = Array.isArray(list)? list : [];
+  TERRITORIES.forEach(t=>{ if(!t.id){t.id=(t.name||'territory').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')} if(!t.bbox) t.bbox=bboxOfGeometry(t.geometry) });
+  const sel=document.getElementById('territorySel');
+  while(sel.options.length>1) sel.remove(1);
+  TERRITORIES.forEach(t=>{const opt=document.createElement('option'); opt.value=t.id; opt.textContent=t.name||t.id; sel.appendChild(opt)});
+}
+function onTerritoryChange(){
+  const id=document.getElementById('territorySel').value;
+  currentTerritory = id ? TERRITORIES.find(t=>t.id===id) : null;
+  if(territoryLayer){map.removeLayer(territoryLayer); territoryLayer=null}
+  if(currentTerritory){
+    territoryLayer=L.geoJSON(currentTerritory.geometry,{style:{color:currentTerritory.color||'#555',weight:1,opacity:0.8,dashArray:'4,6',fillColor:currentTerritory.color||'#555',fillOpacity:0.08},interactive:false,className:'territory-boundary'}).addTo(map);
+    const b=currentTerritory.bbox; if(b){const[w,s,e,n]=b; map.fitBounds([[s,w],[n,e]])}
+  }
+  requestAnimationFrame(applyFilters);
+}
+
+/* Filtering */
+let baseVisiblePredicate = rec => true;
+function updateFilter(){
+  const statusSet=new Set(Array.from(document.querySelectorAll('.statusChk')).filter(cb=>cb.checked).map(cb=>cb.value));
+  const groupSel=document.getElementById('groupSel');
+  const groupSet=new Set(Array.from(groupSel.selectedOptions).map(o=>o.value));
+  const q=(document.getElementById('searchBox').value||'').trim().toLowerCase();
+  baseVisiblePredicate=function(rec){
+    if(rec.active===false) return false;
+    if(statusSet.size && !statusSet.has(normalizeStatus(rec.Status||rec.status))) return false;
+    if(groupSet.size){const g=(rec.Group||rec.group||'').trim(); if(!groupSet.has(g)) return false;}
+    if(q){const hay=((rec.School||rec.SchoolName||rec.Name||'')+' '+(rec.Address||'')+' '+(rec.Group||'')).toLowerCase(); if(!hay.includes(q)) return false;}
+    return true;
+  };
+  requestAnimationFrame(()=>{ applyFilters(); if(LIST_ON) updateList(); });
+}
+function territoryVisible(rec){
+  if(!currentTerritory) return false;            // show nothing until a territory is selected
+  if(!baseVisiblePredicate(rec)) return false;
+  if(!Number.isFinite(rec.lat)||!Number.isFinite(rec.lon)) return false;
+  if(rec.TerritoryId) return rec.TerritoryId===currentTerritory.id;
+  const geo=currentTerritory.geometry, b=currentTerritory.bbox||bboxOfGeometry(geo);
+  if(b){const[w,s,e,n]=b; if(rec.lon<w||rec.lon>e||rec.lat<s||rec.lat>n) return false;}
+  return pointInGeometry(rec.lon,rec.lat,geo);
+}
+let visiblePredicate = territoryVisible;
+function applyFilters(){
+  for (let i=0; i<markers.length; i++){
+    const m = markers[i];
+    const show = visiblePredicate(m._rec);
+    if(show){
+      if(!map.hasLayer(m)) m.addTo(map);
+      const col=getStatusColor(m._rec);
+      m.setStyle({color:col, fillColor:col});
+    } else {
+      if(map.hasLayer(m)) map.removeLayer(m);
+    }
+  }
+}
+
+/* Popups (status change only) */
+function formatPhone(p){const raw=String(p||'').trim(); if(!raw) return ''; const digits=raw.replace(/[^\d+]/g,''); return `<a href="tel:${digits}">${raw}</a>`}
+function formatEmail(e){const raw=String(e||'').trim(); if(!raw) return ''; return `<a href="mailto:${raw}">${raw}</a>`}
+function buildPopupHTML(rec){
+  const name=rec.School||rec.SchoolName||rec.Name||'School';
+  const addr=rec.Address||rec.address||'';
+  const phone=rec.Phone||rec.phone||rec.Telephone||rec['Phone Number']||rec['Contact Phone']||'';
+  const email=rec.Email||rec.email||rec['Email Address']||rec['Contact Email']||'';
+  const group=(rec.Group||rec.group||'').trim();
+  const st=normalizeStatus(rec.Status||rec.status);
+  const phoneHTML=phone?`<br>Phone: ${formatPhone(phone)}`:'';
+  const emailHTML=email?`<br>Email: ${formatEmail(email)}`:'';
+  const groupHTML=group?`<br>Group: ${group}`:'';
+  const select = `
+    <select data-role="status-select">
+      <option value="none"${st==='none'?' selected':''}>none</option>
+      <option value="recent"${st==='recent'?' selected':''}>recent</option>
+      <option value="current"${st==='current'?' selected':''}>current</option>
+      <option value="staff"${st==='staff'?' selected':''}>staff</option>
+    </select>`;
+  const canUpdateKey = !!(rec.Id || ((rec.School||rec.SchoolName||rec.Name) && rec.Address));
+  const btn = `<button data-role="save-status" ${canUpdateKey?'':'disabled'}>${canUpdateKey?'Save':'Save (no key)'}</button>`;
+  const tip = canUpdateKey ? '' : `<div class="muted" style="margin-top:4px;">Add an <strong>Id</strong> column or ensure School & Address exist to enable updates.</div>`;
+  return `<div><strong>${name}</strong><br>${addr}${groupHTML}${phoneHTML}${emailHTML}</div>
+          <div class="popup-row">Status: ${select} ${btn}</div>${tip}`;
+}
+function addCircleFor(rec){
+  const m=L.circleMarker([rec.lat,rec.lon],{radius:6,color:getStatusColor(rec),fillColor:getStatusColor(rec),fillOpacity:0.9,weight:1});
+  m._rec=rec;
+  m.on('click',()=>{
+    const html = buildPopupHTML(rec);
+    m.bindPopup(html).openPopup();
+    setTimeout(()=>{
+      const container = document.querySelector('.leaflet-popup-content');
+      const sel = container && container.querySelector('[data-role="status-select"]');
+      const btn = container && container.querySelector('[data-role="save-status"]');
+      if (!sel || !btn) return;
+      btn.addEventListener('click', async ()=>{
+        const newSt = sel.value;
+        const oldSt = normalizeStatus(rec.Status||rec.status);
+        if (newSt === oldSt) return;
+        rec.Status = newSt; // optimistic color change
+        m.setStyle({ color: getStatusColor(rec), fillColor: getStatusColor(rec) });
+        const keyField = rec.Id ? 'Id' : 'School+Address';
+        const keyValue = rec.Id ? String(rec.Id) : JSON.stringify({ School: (rec.School||rec.SchoolName||rec.Name||''), Address: (rec.Address||'') });
+        try{
+          const res = await updateRowInSheet({ keyField, keyValue, patch: { Status: newSt } });
+          log('status saved row '+(res && res.rowNumber ? res.rowNumber : '?'));
+          m.setPopupContent(buildPopupHTML(rec));
+          showToast('Status saved');
+        }catch(err){
+          log('update FAIL http? see console: '+(err && err.message ? err.message : err));
+          showToast('Could not save status, reverting','error');
+          rec.Status = oldSt;
+          m.setStyle({ color: getStatusColor(rec), fillColor: getStatusColor(rec) });
+          m.setPopupContent(buildPopupHTML(rec));
+        }
+      });
+    },0);
+  });
+  markers.push(m);
+  return m;
+}
+
+/* Groups/List */
+function buildGroupList(){
+  const sel=document.getElementById('groupSel'); const set=new Set();
+  DATA.forEach(r=>{const g=(r.Group||r.group||'').trim(); if(g) set.add(g)});
+  GROUPS=Array.from(set).sort();
+  sel.innerHTML=''; GROUPS.forEach(g=>{const o=document.createElement('option'); o.value=g; o.textContent=g; sel.appendChild(o)});
+}
+function updateList(){
+  const list=document.getElementById('schoolList'); list.innerHTML='';
+  const items=[];
+  markers.forEach(m=>{const r=m._rec; if(visiblePredicate(r)) items.push({name:r.School||r.SchoolName||r.Name||'School',addr:r.Address||'',lat:r.lat,lon:r.lon,m})});
+  items.sort((a,b)=>a.name.localeCompare(b.name));
+  items.forEach(it=>{const d=document.createElement('div'); d.className='list-item'; d.innerHTML=`<strong>${it.name}</strong><br><span class="muted">${it.addr}</span>`; d.addEventListener('click',()=>{map.setView([it.lat,it.lon],14); it.m.fire('click')}); list.appendChild(d)});
+}
+
+/* Downloads */
+function toCSV(rows, header){
+  const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const lines=[header.map(esc).join(',')];
+  rows.forEach(r=>lines.push(header.map(h=>esc(r[h])).join(',')));
+  return lines.join('\n');
+}
+function download(filename, text){
+  const blob=new Blob([text],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+}
+
+/* Server call: status update only */
+async function updateRowInSheet({ keyField, keyValue, patch }){
+  const res = await fetchWithTimeout(WRITE_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type':'text/plain;charset=utf-8' }, // simple request (no preflight)
+    body: JSON.stringify({ secret: WRITE_SECRET, mode:'update', sheetName: SHEET_TAB_NAME, keyField, keyValue, patch }),
+    cache: 'no-store', redirect: 'follow'
+  }, 15000);
+
+  const text = await res.text();
+  let json={}; try{ json=JSON.parse(text);}catch(e){ log('update non-JSON body: '+text.slice(0,200)); }
+  if (!res.ok || !json.ok){
+    log(`update FAIL http=${res.status} body=${text.slice(0,240)}`);
+    throw new Error((json && json.error) || ('HTTP '+res.status));
+  }
+  return json;
+}
+
+/* Init */
+async function init(){
+  log('init → territories');
+  await loadTerritories();
+
+  const params = new URLSearchParams(location.search);
+  const file   = (params.get('file')||'').replace(/[^a-z0-9._-]/gi,'');
+  let csvUrl   = SHEETS_ENDPOINT;
+  if (file) csvUrl += (csvUrl.includes('?') ? '&' : '?') + 'file=' + file;
+  const host = new URL(csvUrl, location.href).host;
+  if (!/googleusercontent\.com$/i.test(host) && !/script\.google\.com$/i.test(host)) {
+    csvUrl += (csvUrl.includes('?') ? '&' : '?') + 'v=' + Date.now();
+  }
+
+  log('init → fetch CSV');
+  const res  = await fetchWithTimeout(csvUrl, { cache: 'no-store', redirect: 'follow' }, 15000);
+  if (!res.ok) throw new Error(`CSV HTTP ${res.status}`);
+  const text = await res.text();
+
+  const parsed=parseCSV(text); HEADER=parsed.header; DATA=parsed.rows; normalizeRecords(DATA);
+  buildGroupList();
+
+  log('init → create markers');
+  for (let i=0;i<DATA.length;i++){
+    const r=DATA[i];
+    if(isValidLatLon(r.lat,r.lon)){
+      const m = addCircleFor(r);
+      if (visiblePredicate(r)) m.addTo(map); // hidden until territory selection
+    }
+  }
+  log('init ← done');
+}
+
+/* Wire UI */
+document.addEventListener('DOMContentLoaded',()=>{
+  init().catch(e=>{console.error(e); showToast('Data load error: '+e.message, 'error'); log('ERR '+e.message)});
+
+  document.getElementById('territorySel').addEventListener('change', onTerritoryChange);
+  document.getElementById('groupSel').addEventListener('change', updateFilter);
+  document.querySelectorAll('.statusChk').forEach(cb=>cb.addEventListener('change', updateFilter));
+  document.getElementById('btnSearch').addEventListener('click', updateFilter);
+  document.getElementById('btnClearSearch').addEventListener('click',()=>{document.getElementById('searchBox').value=''; updateFilter()});
+  document.getElementById('searchBox').addEventListener('keydown',e=>{if(e.key==='Enter') updateFilter()});
+  document.getElementById('btnZoomFirst').addEventListener('click',()=>{const first=markers.find(m=>map.hasLayer(m)); if(first) map.setView(first.getLatLng(),14)});
+
+  document.getElementById('btnToggleList').addEventListener('click',()=>{
+    LIST_ON=!LIST_ON;
+    document.getElementById('listContainer').style.display=LIST_ON?'block':'none';
+    document.getElementById('btnToggleList').textContent=LIST_ON?'List View: ON':'List View: OFF';
+    if(LIST_ON) updateList();
+  });
+  document.getElementById('groupSelectAll').addEventListener('click',()=>{const s=document.getElementById('groupSel'); for(const o of s.options) o.selected=true; updateFilter()});
+  document.getElementById('groupClear').addEventListener('click',()=>{const s=document.getElementById('groupSel'); for(const o of s.options) o.selected=false; updateFilter()});
+});
 </script>
 </body>
 </html>
