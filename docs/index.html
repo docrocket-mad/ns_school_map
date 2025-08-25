@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NS Schools Map (Live v13.1)</title>
+<title>NS Schools Map with AI (Live v14.0)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   html, body, #map { height:100%; margin:0; }
@@ -28,27 +28,118 @@
   #panel.is-collapsed #panelBody { display:none; }
   #panel.is-collapsed { max-height:unset; }
 
-  /* Brand buttons */
-button {
-  background:#6a1b9a;  /* deep violet */
-  color:#fff;
-  border:none;
-  border-radius:6px;
-  padding:4px 8px;
-  font-weight:500;
-  cursor:pointer;
-  transition:background .2s;
-  
-}
-button:hover {
-  background:#8e24aa; /* lighter violet */
-}
-button:disabled {
-  background:#ccc;
-  color:#666;
-  cursor:default;
-}
+  /* Tabs for AI Tools */
+  .tabs {
+    display:flex; gap:4px; margin-bottom:12px; border-bottom:2px solid #e6e6e6;
+  }
+  .tab {
+    padding:8px 12px; cursor:pointer; border-radius:8px 8px 0 0;
+    background:#f0f0f3; transition:all 0.2s; font-weight:500;
+  }
+  .tab:hover { background:#e6e6e9; }
+  .tab.active {
+    background:#6a1b9a; color:#fff;
+  }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
 
+  /* AI Assistant Panel */
+  #aiPanel {
+    position:fixed; top:20px; right:20px; z-index:9998;
+    width:380px; height:500px; background:#fff;
+    border:1px solid #ccc; border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.15);
+    font-family:system-ui, -apple-system, sans-serif;
+    display:none; flex-direction:column;
+  }
+  #aiPanel.active { display:flex; }
+  
+  #aiHeader {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; border-bottom:1px solid #e6e6e6;
+    background:linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%);
+    color:#fff; border-radius:10px 10px 0 0;
+  }
+  
+  #aiChat {
+    flex:1; overflow-y:auto; padding:12px;
+    background:#f9f9fb;
+  }
+  
+  .ai-message {
+    margin:8px 0; padding:8px 12px; border-radius:12px;
+    max-width:85%; word-wrap:break-word;
+  }
+  .ai-message.user {
+    background:#6a1b9a; color:#fff; margin-left:auto;
+    text-align:right;
+  }
+  .ai-message.assistant {
+    background:#fff; border:1px solid #e0e0e0;
+  }
+  
+  #aiInputArea {
+    padding:10px; border-top:1px solid #e6e6e6;
+    display:flex; gap:8px;
+  }
+  
+  #aiInput {
+    flex:1; padding:8px; border:1px solid #ddd;
+    border-radius:20px; font-size:13px;
+  }
+  
+  #aiSend {
+    padding:8px 16px; background:#6a1b9a; color:#fff;
+    border:none; border-radius:20px; cursor:pointer;
+    font-weight:500;
+  }
+  #aiSend:hover { background:#8e24aa; }
+  
+  /* AI Analysis Results */
+  .ai-analysis-card {
+    background:#fff; border:1px solid #e0e0e0;
+    border-radius:8px; padding:10px; margin:8px 0;
+  }
+  .ai-stat {
+    display:flex; justify-content:space-between;
+    padding:4px 0; border-bottom:1px solid #f0f0f0;
+  }
+  .ai-stat:last-child { border-bottom:none; }
+  .ai-recommendation {
+    background:#f0f8ff; padding:8px; border-radius:6px;
+    margin-top:8px; border-left:3px solid #1f77b4;
+  }
+
+  /* Brand buttons */
+  button {
+    background:#6a1b9a;
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    padding:4px 8px;
+    font-weight:500;
+    cursor:pointer;
+    transition:background .2s;
+  }
+  button:hover {
+    background:#8e24aa;
+  }
+  button:disabled {
+    background:#ccc;
+    color:#666;
+    cursor:default;
+  }
+
+  /* AI Toggle Button */
+  #btnToggleAI {
+    position:fixed; bottom:80px; right:20px; z-index:9999;
+    width:56px; height:56px; border-radius:50%;
+    background:linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%);
+    color:#fff; border:none; box-shadow:0 3px 8px rgba(0,0,0,0.2);
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; cursor:pointer; transition:transform 0.2s;
+  }
+  #btnToggleAI:hover { transform:scale(1.1); }
 
   /* Legend */
   #legend {
@@ -74,9 +165,9 @@ button:disabled {
     font:13px/1.3 system-ui;display:none;max-width:50vw;
   }
 
-  /* Log (minimizable, doesn’t cover legend) */
+  /* Log (minimizable, doesn't cover legend) */
   #log {
-    position:fixed; right:20px; bottom:80px; z-index:10000;
+    position:fixed; right:20px; bottom:150px; z-index:10000;
     min-width:260px; max-width:45vw; max-height:30vh; overflow:auto;
     border-radius:8px; border:1px solid #e0e0e0; background:#fafafa; color:#333;
     font:12px/1.35 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -91,7 +182,8 @@ button:disabled {
     #panelBody { max-height:calc(70vh - 40px); }
     #legend { left:12px; bottom:12px; }
     #toast { right:12px; bottom:12px; max-width:75vw; }
-    #log { right:12px; bottom:80px; max-width:75vw; }
+    #log { right:12px; bottom:150px; max-width:75vw; }
+    #aiPanel { width:90vw; right:5vw; height:60vh; }
   }
 </style>
 </head>
@@ -102,62 +194,127 @@ button:disabled {
 <div id="panelHeader">
   <div class="title">
     <img src="madscience-logo.png" alt="Mad Science" style="height:28px; margin-right:8px;">
-    <span>Filters & Tools</span>
-    <span class="badge">BUILD v13.1</span>
+    <span>Filters & AI Tools</span>
+    <span class="badge">AI v14.0</span>
   </div>
   <button id="btnCollapsePanel" title="Collapse/Expand">Collapse</button>
 </div>
 
-
   <div id="panelBody">
-    <div class="filter-block" style="margin-bottom:8px;">
-      <label for="territorySel"><strong>Territory:</strong></label><br>
-      <select id="territorySel">
-        <option value="">-- Select a territory --</option>
-      </select>
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="filters">Filters</div>
+      <div class="tab" data-tab="ai-tools">AI Tools</div>
+      <div class="tab" data-tab="insights">Insights</div>
     </div>
 
-    <div style="margin-bottom:8px;">
-      <div style="font-weight:600; margin-bottom:4px;">Status</div>
-      <label><input type="checkbox" class="statusChk" value="none" checked> None</label><br>
-      <label><input type="checkbox" class="statusChk" value="recent" checked> Recent</label><br>
-      <label><input type="checkbox" class="statusChk" value="current" checked> Current</label><br>
-      <label><input type="checkbox" class="statusChk" value="staff" checked> Staff</label>
-    </div>
+    <!-- Filters Tab (Original Content) -->
+    <div id="filters-content" class="tab-content active">
+      <div class="filter-block" style="margin-bottom:8px;">
+        <label for="territorySel"><strong>Territory:</strong></label><br>
+        <select id="territorySel">
+          <option value="">-- Select a territory --</option>
+        </select>
+      </div>
 
-    <div style="margin-bottom:8px;">
-      <div style="font-weight:600; margin-bottom:4px;">Group</div>
-      <select id="groupSel" multiple size="7" style="width:100%;"></select>
-      <div class="row" style="margin-top:6px;">
-        <button id="groupClear" type="button">Clear</button>
-        <button id="groupSelectAll" type="button">Select all</button>
-        <button id="btnToggleList" type="button">List View: OFF</button>
+      <div style="margin-bottom:8px;">
+        <div style="font-weight:600; margin-bottom:4px;">Status</div>
+        <label><input type="checkbox" class="statusChk" value="none" checked> None</label><br>
+        <label><input type="checkbox" class="statusChk" value="recent" checked> Recent</label><br>
+        <label><input type="checkbox" class="statusChk" value="current" checked> Current</label><br>
+        <label><input type="checkbox" class="statusChk" value="staff" checked> Staff</label>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <div style="font-weight:600; margin-bottom:4px;">Group</div>
+        <select id="groupSel" multiple size="7" style="width:100%;"></select>
+        <div class="row" style="margin-top:6px;">
+          <button id="groupClear" type="button">Clear</button>
+          <button id="groupSelectAll" type="button">Select all</button>
+          <button id="btnToggleList" type="button">List View: OFF</button>
+        </div>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <div style="font-weight:600; margin-bottom:4px;">Search</div>
+        <input id="searchBox" type="text" placeholder="School or address..." style="width:100%; padding:6px;">
+        <div class="row" style="margin-top:6px;">
+          <button id="btnSearch" type="button">Apply</button>
+          <button id="btnClearSearch" type="button">Clear</button>
+          <button id="btnZoomFirst" type="button">Zoom to first</button>
+        </div>
+      </div>
+
+      <div id="listContainer" style="display:none; margin:10px 0; border:1px solid #ddd; border-radius:8px; max-height:220px; overflow:auto;">
+        <div style="padding:6px 8px; font-weight:600; border-bottom:1px solid #eee;">Schools</div>
+        <div id="schoolList" style="max-height:180px; overflow:auto;"></div>
+      </div>
+
+      <hr style="margin:10px 0;">
+
+      <div class="row" style="align-items:center; flex-wrap:wrap;">
+        <button id="btnDownloadAll" type="button" style="font-weight:700;">Download CSV (All)</button>
+        <button id="btnDownloadFiltered" type="button" style="font-weight:700;">Download Filtered CSV</button>
       </div>
     </div>
 
-    <div style="margin-bottom:8px;">
-      <div style="font-weight:600; margin-bottom:4px;">Search</div>
-      <input id="searchBox" type="text" placeholder="School or address..." style="width:100%; padding:6px;">
-      <div class="row" style="margin-top:6px;">
-        <button id="btnSearch" type="button">Apply</button>
-        <button id="btnClearSearch" type="button">Clear</button>
-        <button id="btnZoomFirst" type="button">Zoom to first</button>
+    <!-- AI Tools Tab -->
+    <div id="ai-tools-content" class="tab-content">
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:600; margin-bottom:6px;">🤖 AI Assistant</div>
+        <button id="btnOpenAI" type="button" style="width:100%;">Open AI Chat Assistant</button>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:600; margin-bottom:6px;">🔍 Smart Search</div>
+        <input id="aiSearchBox" type="text" placeholder="Ask about schools in natural language..." style="width:100%; padding:6px; margin-bottom:6px;">
+        <button id="btnAISearch" type="button" style="width:100%;">AI Search</button>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:600; margin-bottom:6px;">📊 Quick Analysis</div>
+        <button id="btnAnalyzeTerritory" type="button" style="width:100%; margin-bottom:4px;">Analyze Current Territory</button>
+        <button id="btnFindOptimal" type="button" style="width:100%; margin-bottom:4px;">Find Optimal Routes</button>
+        <button id="btnPredictGrowth" type="button" style="width:100%;">Predict Growth Areas</button>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:600; margin-bottom:6px;">📈 Data Insights</div>
+        <button id="btnGenerateReport" type="button" style="width:100%;">Generate AI Report</button>
       </div>
     </div>
 
-    <div id="listContainer" style="display:none; margin:10px 0; border:1px solid #ddd; border-radius:8px; max-height:220px; overflow:auto;">
-      <div style="padding:6px 8px; font-weight:600; border-bottom:1px solid #eee;">Schools</div>
-      <div id="schoolList" style="max-height:180px; overflow:auto;"></div>
-    </div>
-
-    <hr style="margin:10px 0;">
-
-    <div class="row" style="align-items:center; flex-wrap:wrap;">
-      <button id="btnDownloadAll" type="button" style="font-weight:700;">Download CSV (All)</button>
-      <button id="btnDownloadFiltered" type="button" style="font-weight:700;">Download Filtered CSV</button>
+    <!-- Insights Tab -->
+    <div id="insights-content" class="tab-content">
+      <div id="insightsArea">
+        <div class="ai-analysis-card">
+          <h4 style="margin:0 0 8px 0;">Territory Overview</h4>
+          <div id="territoryStats"></div>
+        </div>
+        <div class="ai-analysis-card">
+          <h4 style="margin:0 0 8px 0;">AI Recommendations</h4>
+          <div id="aiRecommendations"></div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
+
+<!-- AI Assistant Panel -->
+<div id="aiPanel">
+  <div id="aiHeader">
+    <strong>🤖 AI Assistant</strong>
+    <button id="btnCloseAI" style="background:transparent; border:1px solid #fff; color:#fff;">✕</button>
+  </div>
+  <div id="aiChat"></div>
+  <div id="aiInputArea">
+    <input id="aiInput" type="text" placeholder="Ask about schools, territories, or strategies...">
+    <button id="aiSend">Send</button>
+  </div>
+</div>
+
+<!-- AI Toggle Button -->
+<button id="btnToggleAI" title="Toggle AI Assistant">🤖</button>
 
 <div id="legend">
   <div style="font-weight:700; margin-bottom:6px;">Status Legend</div>
@@ -251,7 +408,7 @@ function bboxOfRing(r){let w=Infinity,s=Infinity,e=-Infinity,n=-Infinity;for(con
 function expandBBox(b,a){if(!b)return a.slice();if(a[0]<b[0])b[0]=a[0];if(a[1]<b[1])b[1]=a[1];if(a[2]>b[2])b[2]=a[2];if(a[3]>b[3])b[3]=a[3];return b}
 function bboxOfPolygon(p){return bboxOfRing(p[0])}
 function bboxOfGeometry(g){if(!g)return null;if(g.type==='Polygon')return bboxOfPolygon(g.coordinates);if(g.type==='MultiPolygon'){let b=null;for(const p of g.coordinates)b=expandBBox(b,bboxOfPolygon(p));return b}return null}
-function pointInRing(x,y,ring){let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i){const[xi,yi]=ring[i],[xj,yj]=ring[j];const inter=((yi>y)!=(yj>y))&&(x<(xj-xi)*(y-yi)/((yj-yi)||1e-12)+xi);if(inter)inside=!inside}return inside}
+function pointInRing(x,y,ring){let inside=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const[xi,yi]=ring[i],[xj,yj]=ring[j];const inter=((yi>y)!=(yj>y))&&(x<(xj-xi)*(y-yi)/((yj-yi)||1e-12)+xi);if(inter)inside=!inside}return inside}
 function pointInGeometry(x,y,g){if(!g)return false;if(g.type==='Polygon'){const r=g.coordinates;if(!pointInRing(x,y,r[0]))return false;for(let i=1;i<r.length;i++)if(pointInRing(x,y,r[i]))return false;return true}if(g.type==='MultiPolygon'){for(const p of g.coordinates){const r=p;if(!pointInRing(x,y,r[0]))continue;let ok=true;for(let i=1;i<r.length;i++)if(pointInRing(x,y,r[i])){ok=false;break}if(ok)return true}}return false}
 
 /* State */
@@ -297,6 +454,7 @@ function onTerritoryChange(){
     const b=currentTerritory.bbox; if(b){const[w,s,e,n]=b; map.fitBounds([[s,w],[n,e]])}
   }
   requestAnimationFrame(applyFilters);
+  updateTerritoryInsights(); // AI feature
 }
 
 /* Filtering */
@@ -431,8 +589,6 @@ function download(filename, text){
   const a    = document.createElement('a');
   a.href = url;
   a.download = filename;
-
-  // Safari/iOS sometimes ignores click on detached nodes
   document.body.appendChild(a);
   a.click();
   requestAnimationFrame(()=>{
@@ -441,16 +597,14 @@ function download(filename, text){
   });
 }
 
-
 /* Server call: status update only */
 async function updateRowInSheet({ keyField, keyValue, patch }){
   const res = await fetchWithTimeout(WRITE_ENDPOINT, {
     method: 'POST',
-    headers: { 'Content-Type':'text/plain;charset=utf-8' }, // simple request (no preflight)
+    headers: { 'Content-Type':'text/plain;charset=utf-8' },
     body: JSON.stringify({ secret: WRITE_SECRET, mode:'update', sheetName: SHEET_TAB_NAME, keyField, keyValue, patch }),
     cache: 'no-store', redirect: 'follow'
   }, 15000);
-
   const text = await res.text();
   let json={}; try{ json=JSON.parse(text);}catch(e){ log('update non-JSON body: '+text.slice(0,200)); }
   if (!res.ok || !json.ok){
@@ -458,6 +612,286 @@ async function updateRowInSheet({ keyField, keyValue, patch }){
     throw new Error((json && json.error) || ('HTTP '+res.status));
   }
   return json;
+}
+
+/* ===== AI FEATURES ===== */
+
+// AI Assistant functionality
+class AIAssistant {
+  constructor() {
+    this.context = {
+      totalSchools: 0,
+      territories: [],
+      currentTerritory: null,
+      statusDistribution: {}
+    };
+  }
+
+  updateContext() {
+    this.context.totalSchools = DATA.length;
+    this.context.territories = TERRITORIES.map(t => t.name);
+    this.context.currentTerritory = currentTerritory?.name;
+    
+    // Calculate status distribution
+    const dist = {none:0, recent:0, current:0, staff:0};
+    DATA.forEach(r => {
+      const st = normalizeStatus(r.Status || r.status);
+      dist[st]++;
+    });
+    this.context.statusDistribution = dist;
+  }
+
+  async processQuery(query) {
+    this.updateContext();
+    
+    // Simple pattern matching for common queries
+    const lowerQuery = query.toLowerCase();
+    
+    if (lowerQuery.includes('how many schools')) {
+      const visible = markers.filter(m => visiblePredicate(m._rec)).length;
+      return `There are ${this.context.totalSchools} schools total. Currently showing ${visible} schools in ${this.context.currentTerritory || 'all territories'}.`;
+    }
+    
+    if (lowerQuery.includes('status') || lowerQuery.includes('breakdown')) {
+      const dist = this.context.statusDistribution;
+      return `Status breakdown:\n• None: ${dist.none}\n• Recent: ${dist.recent}\n• Current: ${dist.current}\n• Staff: ${dist.staff}`;
+    }
+    
+    if (lowerQuery.includes('territory') && lowerQuery.includes('most')) {
+      const territoryCounts = {};
+      TERRITORIES.forEach(t => {
+        const count = DATA.filter(r => {
+          if (!Number.isFinite(r.lat) || !Number.isFinite(r.lon)) return false;
+          return pointInGeometry(r.lon, r.lat, t.geometry);
+        }).length;
+        territoryCounts[t.name] = count;
+      });
+      const sorted = Object.entries(territoryCounts).sort((a,b) => b[1] - a[1]);
+      return `Territories by school count:\n${sorted.slice(0,5).map(([name,count]) => `• ${name}: ${count} schools`).join('\n')}`;
+    }
+    
+    if (lowerQuery.includes('recommend') || lowerQuery.includes('suggest')) {
+      return this.generateRecommendation();
+    }
+    
+    if (lowerQuery.includes('route') || lowerQuery.includes('optimal')) {
+      return this.suggestRoute();
+    }
+    
+    // Default response
+    return `I can help you with:\n• School counts and statistics\n• Territory analysis\n• Status breakdowns\n• Route optimization\n• Strategic recommendations\n\nWhat would you like to know?`;
+  }
+
+  generateRecommendation() {
+    const visible = markers.filter(m => visiblePredicate(m._rec));
+    const noneCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'none').length;
+    
+    if (noneCount > visible.length * 0.5) {
+      return `📊 Recommendation: Focus on converting "None" status schools. You have ${noneCount} uncontacted schools (${Math.round(noneCount/visible.length*100)}%) in the current view. Consider prioritizing clusters of nearby schools for efficient outreach.`;
+    }
+    
+    const recentCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'recent').length;
+    if (recentCount > visible.length * 0.3) {
+      return `📊 Recommendation: Follow up with "Recent" contacts. You have ${recentCount} schools (${Math.round(recentCount/visible.length*100)}%) that were recently contacted. These warm leads have higher conversion potential.`;
+    }
+    
+    return `📊 Recommendation: Your territory coverage looks good! Consider expanding to adjacent areas or deepening relationships with current schools.`;
+  }
+
+  suggestRoute() {
+    const visible = markers.filter(m => visiblePredicate(m._rec) && normalizeStatus(m._rec.Status) === 'none');
+    if (visible.length === 0) {
+      return `✅ No uncontacted schools in the current view. Great coverage!`;
+    }
+    
+    // Simple clustering suggestion
+    const clusters = this.findClusters(visible.map(m => m._rec));
+    if (clusters.length > 0) {
+      return `🗺️ Route suggestion: I found ${clusters.length} clusters of uncontacted schools. The largest cluster has ${clusters[0].length} schools near ${clusters[0][0].Address || 'the area'}. Focus on this area for efficient visits.`;
+    }
+    
+    return `🗺️ Found ${visible.length} uncontacted schools. They're spread out, so consider planning multiple trip days.`;
+  }
+
+  findClusters(schools) {
+    // Simple distance-based clustering
+    const clusters = [];
+    const used = new Set();
+    
+    schools.forEach((school, i) => {
+      if (used.has(i)) return;
+      
+      const cluster = [school];
+      used.add(i);
+      
+      schools.forEach((other, j) => {
+        if (i === j || used.has(j)) return;
+        const dist = this.getDistance(school.lat, school.lon, other.lat, other.lon);
+        if (dist < 5) { // Within 5km
+          cluster.push(other);
+          used.add(j);
+        }
+      });
+      
+      if (cluster.length > 2) clusters.push(cluster);
+    });
+    
+    return clusters.sort((a,b) => b.length - a.length);
+  }
+
+  getDistance(lat1, lon1, lat2, lon2) {
+    // Haversine formula for distance in km
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+}
+
+const aiAssistant = new AIAssistant();
+
+// AI Natural Language Search
+function performAISearch(query) {
+  const lowerQuery = query.toLowerCase();
+  const results = [];
+  
+  DATA.forEach(rec => {
+    let score = 0;
+    const schoolName = (rec.School || rec.SchoolName || rec.Name || '').toLowerCase();
+    const address = (rec.Address || '').toLowerCase();
+    const group = (rec.Group || '').toLowerCase();
+    
+    // Check for exact matches
+    if (schoolName.includes(lowerQuery)) score += 10;
+    if (address.includes(lowerQuery)) score += 5;
+    if (group.includes(lowerQuery)) score += 3;
+    
+    // Check for individual words
+    const words = lowerQuery.split(' ');
+    words.forEach(word => {
+      if (word.length > 2) {
+        if (schoolName.includes(word)) score += 2;
+        if (address.includes(word)) score += 1;
+      }
+    });
+    
+    // Status-based queries
+    if (lowerQuery.includes('uncontacted') && normalizeStatus(rec.Status) === 'none') score += 8;
+    if (lowerQuery.includes('recent') && normalizeStatus(rec.Status) === 'recent') score += 8;
+    if (lowerQuery.includes('current') && normalizeStatus(rec.Status) === 'current') score += 8;
+    
+    if (score > 0) {
+      results.push({rec, score});
+    }
+  });
+  
+  results.sort((a,b) => b.score - a.score);
+  return results.slice(0, 10).map(r => r.rec);
+}
+
+// Territory Insights
+function updateTerritoryInsights() {
+  if (!currentTerritory) {
+    document.getElementById('territoryStats').innerHTML = '<div class="muted">Select a territory to see insights</div>';
+    return;
+  }
+  
+  const visible = markers.filter(m => territoryVisible(m._rec));
+  const statusCounts = {none:0, recent:0, current:0, staff:0};
+  
+  visible.forEach(m => {
+    const st = normalizeStatus(m._rec.Status || m._rec.status);
+    statusCounts[st]++;
+  });
+  
+  const total = visible.length;
+  const coverage = total > 0 ? Math.round((statusCounts.current + statusCounts.staff) / total * 100) : 0;
+  
+  document.getElementById('territoryStats').innerHTML = `
+    <div class="ai-stat"><span>Total Schools:</span><strong>${total}</strong></div>
+    <div class="ai-stat"><span>Coverage:</span><strong>${coverage}%</strong></div>
+    <div class="ai-stat"><span>Uncontacted:</span><strong>${statusCounts.none}</strong></div>
+    <div class="ai-stat"><span>Recent:</span><strong>${statusCounts.recent}</strong></div>
+    <div class="ai-stat"><span>Current:</span><strong>${statusCounts.current}</strong></div>
+    <div class="ai-stat"><span>Staff:</span><strong>${statusCounts.staff}</strong></div>
+  `;
+  
+  // Generate AI recommendations
+  let recommendations = [];
+  
+  if (statusCounts.none > total * 0.4) {
+    recommendations.push(`High opportunity: ${statusCounts.none} uncontacted schools`);
+  }
+  if (statusCounts.recent > 5) {
+    recommendations.push(`Follow up with ${statusCounts.recent} recent contacts`);
+  }
+  if (coverage < 30) {
+    recommendations.push(`Low coverage area - prioritize for growth`);
+  } else if (coverage > 70) {
+    recommendations.push(`Strong coverage - focus on retention`);
+  }
+  
+  if (recommendations.length === 0) {
+    recommendations.push(`Balanced territory - maintain current strategy`);
+  }
+  
+  document.getElementById('aiRecommendations').innerHTML = recommendations
+    .map(r => `<div class="ai-recommendation">${r}</div>`)
+    .join('');
+}
+
+// Generate AI Report
+async function generateAIReport() {
+  const report = [];
+  report.push(`📊 **School Network Analysis Report**`);
+  report.push(`Generated: ${new Date().toLocaleDateString()}\n`);
+  
+  // Overall statistics
+  report.push(`**Overall Statistics:**`);
+  report.push(`• Total Schools: ${DATA.length}`);
+  report.push(`• Active Territories: ${TERRITORIES.length}`);
+  
+  // Status breakdown
+  const statusDist = {none:0, recent:0, current:0, staff:0};
+  DATA.forEach(r => statusDist[normalizeStatus(r.Status || r.status)]++);
+  
+  report.push(`\n**Status Distribution:**`);
+  report.push(`• Uncontacted: ${statusDist.none} (${Math.round(statusDist.none/DATA.length*100)}%)`);
+  report.push(`• Recent: ${statusDist.recent} (${Math.round(statusDist.recent/DATA.length*100)}%)`);
+  report.push(`• Current: ${statusDist.current} (${Math.round(statusDist.current/DATA.length*100)}%)`);
+  report.push(`• Staff: ${statusDist.staff} (${Math.round(statusDist.staff/DATA.length*100)}%)`);
+  
+  // Territory analysis
+  report.push(`\n**Top Territories by School Count:**`);
+  const territoryData = [];
+  TERRITORIES.forEach(t => {
+    const count = DATA.filter(r => {
+      if (!Number.isFinite(r.lat) || !Number.isFinite(r.lon)) return false;
+      return pointInGeometry(r.lon, r.lat, t.geometry);
+    }).length;
+    territoryData.push({name: t.name, count});
+  });
+  territoryData.sort((a,b) => b.count - a.count);
+  territoryData.slice(0,5).forEach(t => {
+    report.push(`• ${t.name}: ${t.count} schools`);
+  });
+  
+  // Recommendations
+  report.push(`\n**Strategic Recommendations:**`);
+  if (statusDist.none > DATA.length * 0.3) {
+    report.push(`• High growth opportunity with ${statusDist.none} uncontacted schools`);
+  }
+  if (statusDist.recent > DATA.length * 0.2) {
+    report.push(`• Prioritize converting ${statusDist.recent} recent contacts to current`);
+  }
+  report.push(`• Focus on territories with highest uncontacted density`);
+  report.push(`• Implement cluster-based outreach for efficiency`);
+  
+  return report.join('\n');
 }
 
 /* Init */
@@ -487,7 +921,7 @@ async function init(){
     const r=DATA[i];
     if(isValidLatLon(r.lat,r.lon)){
       const m = addCircleFor(r);
-      if (visiblePredicate(r)) m.addTo(map); // hidden until territory selection
+      if (visiblePredicate(r)) m.addTo(map);
     }
   }
   log('init ← done');
@@ -497,6 +931,7 @@ async function init(){
 document.addEventListener('DOMContentLoaded',()=>{
   init().catch(e=>{console.error(e); showToast('Data load error: '+e.message, 'error'); log('ERR '+e.message)});
 
+  // Original event listeners
   document.getElementById('territorySel').addEventListener('change', onTerritoryChange);
   document.getElementById('groupSel').addEventListener('change', updateFilter);
   document.querySelectorAll('.statusChk').forEach(cb=>cb.addEventListener('change', updateFilter));
@@ -513,7 +948,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
   document.getElementById('groupSelectAll').addEventListener('click',()=>{const s=document.getElementById('groupSel'); for(const o of s.options) o.selected=true; updateFilter()});
   document.getElementById('groupClear').addEventListener('click',()=>{const s=document.getElementById('groupSel'); for(const o of s.options) o.selected=false; updateFilter()});
-});
+
   // CSV downloads
   document.getElementById('btnDownloadAll').addEventListener('click', ()=>{
     const csv = toCSV(DATA, HEADER);
@@ -522,12 +957,139 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 
   document.getElementById('btnDownloadFiltered').addEventListener('click', ()=>{
-    const filtered = DATA.filter(r => visiblePredicate(r)); // respects territory + filters
+    const filtered = DATA.filter(r => visiblePredicate(r));
     const csv = toCSV(filtered, HEADER);
     const d   = new Date().toISOString().slice(0,10);
     download(`schools-filtered-${d}.csv`, csv);
   });
 
+  // Tab switching
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(`${tab.dataset.tab}-content`).classList.add('active');
+    });
+  });
+
+  // AI Panel controls
+  document.getElementById('btnToggleAI').addEventListener('click', () => {
+    document.getElementById('aiPanel').classList.toggle('active');
+  });
+  
+  document.getElementById('btnOpenAI').addEventListener('click', () => {
+    document.getElementById('aiPanel').classList.add('active');
+  });
+  
+  document.getElementById('btnCloseAI').addEventListener('click', () => {
+    document.getElementById('aiPanel').classList.remove('active');
+  });
+
+  // AI Chat
+  const sendAIMessage = async () => {
+    const input = document.getElementById('aiInput');
+    const query = input.value.trim();
+    if (!query) return;
+    
+    const chat = document.getElementById('aiChat');
+    chat.innerHTML += `<div class="ai-message user">${query}</div>`;
+    input.value = '';
+    
+    const response = await aiAssistant.processQuery(query);
+    chat.innerHTML += `<div class="ai-message assistant">${response}</div>`;
+    chat.scrollTop = chat.scrollHeight;
+  };
+  
+  document.getElementById('aiSend').addEventListener('click', sendAIMessage);
+  document.getElementById('aiInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') sendAIMessage();
+  });
+
+  // AI Search
+  document.getElementById('btnAISearch').addEventListener('click', () => {
+    const query = document.getElementById('aiSearchBox').value.trim();
+    if (!query) return;
+    
+    const results = performAISearch(query);
+    if (results.length === 0) {
+      showToast('No results found for AI search', 'error');
+      return;
+    }
+    
+    // Apply search results as filter
+    const resultIds = new Set(results.map(r => r.Id || `${r.School}_${r.Address}`));
+    baseVisiblePredicate = function(rec) {
+      const recId = rec.Id || `${rec.School}_${rec.Address}`;
+      return resultIds.has(recId);
+    };
+    applyFilters();
+    
+    showToast(`Found ${results.length} results for "${query}"`);
+    
+    // Zoom to first result
+    const first = markers.find(m => results.includes(m._rec));
+    if (first) map.setView(first.getLatLng(), 12);
+  });
+
+  // AI Analysis buttons
+  document.getElementById('btnAnalyzeTerritory').addEventListener('click', () => {
+    if (!currentTerritory) {
+      showToast('Please select a territory first', 'error');
+      return;
+    }
+    
+    // Switch to insights tab
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('[data-tab="insights"]').classList.add('active');
+    document.getElementById('insights-content').classList.add('active');
+    
+    updateTerritoryInsights();
+    showToast('Territory analysis complete');
+  });
+
+  document.getElementById('btnFindOptimal').addEventListener('click', async () => {
+    const result = aiAssistant.suggestRoute();
+    
+    // Show in AI chat
+    document.getElementById('aiPanel').classList.add('active');
+    const chat = document.getElementById('aiChat');
+    chat.innerHTML += `<div class="ai-message assistant">${result}</div>`;
+    chat.scrollTop = chat.scrollHeight;
+  });
+
+  document.getElementById('btnPredictGrowth').addEventListener('click', () => {
+    const visible = markers.filter(m => visiblePredicate(m._rec));
+    const noneCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'none').length;
+    const growthPotential = Math.round(noneCount / visible.length * 100);
+    
+    const prediction = `📈 Growth Prediction:\n\nCurrent territory has ${growthPotential}% growth potential with ${noneCount} uncontacted schools.\n\nProjected outcomes:\n• Conservative: Convert 20% = ${Math.round(noneCount * 0.2)} new clients\n• Moderate: Convert 35% = ${Math.round(noneCount * 0.35)} new clients\n• Aggressive: Convert 50% = ${Math.round(noneCount * 0.5)} new clients\n\nRecommended focus: ${growthPotential > 40 ? 'High priority territory' : growthPotential > 20 ? 'Moderate opportunity' : 'Maintenance mode'}`;
+    
+    // Show in AI chat
+    document.getElementById('aiPanel').classList.add('active');
+    const chat = document.getElementById('aiChat');
+    chat.innerHTML += `<div class="ai-message assistant">${prediction}</div>`;
+    chat.scrollTop = chat.scrollHeight;
+  });
+
+  document.getElementById('btnGenerateReport').addEventListener('click', async () => {
+    const report = await generateAIReport();
+    
+    // Create and download report
+    const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ai-report-${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('AI Report generated and downloaded');
+  });
+});
 </script>
 </body>
 </html>
