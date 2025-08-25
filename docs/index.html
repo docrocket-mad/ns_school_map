@@ -273,7 +273,7 @@
 
       <div style="margin-bottom:12px;">
         <div style="font-weight:600; margin-bottom:6px;">📊 Quick Analysis</div>
-        <button id="btnAnalyzeTerritory" type="button" style="width:100%; margin-bottom:4px;">Analyze Current Territory</button>
+        <button id="btnAnalyzeTerritory" type="button" style="width:100%; margin-bottom:4px;">Analyze Current View</button>
         <button id="btnFindOptimal" type="button" style="width:100%; margin-bottom:4px;">Find Optimal Routes</button>
         <button id="btnPredictGrowth" type="button" style="width:100%;">Predict Growth Areas</button>
       </div>
@@ -471,7 +471,11 @@ function updateFilter(){
     if(q){const hay=((rec.School||rec.SchoolName||rec.Name||'')+' '+(rec.Address||'')+' '+(rec.Group||'')).toLowerCase(); if(!hay.includes(q)) return false;}
     return true;
   };
-  requestAnimationFrame(()=>{ applyFilters(); if(LIST_ON) updateList(); });
+  requestAnimationFrame(()=>{ 
+    applyFilters(); 
+    if(LIST_ON) updateList(); 
+    updateTerritoryInsights(); // Update insights when filters change
+  });
 }
 function territoryVisible(rec){
   if(!currentTerritory) return false;            // show nothing until a territory is selected
@@ -632,29 +636,53 @@ class AIAssistant {
     this.context.territories = TERRITORIES.map(t => t.name);
     this.context.currentTerritory = currentTerritory?.name;
     
-    // Calculate status distribution
+    // Get selected groups
+    const groupSel = document.getElementById('groupSel');
+    this.context.selectedGroups = Array.from(groupSel.selectedOptions).map(o => o.value);
+    
+    // Calculate status distribution for visible schools
     const dist = {none:0, recent:0, current:0, staff:0};
-    DATA.forEach(r => {
-      const st = normalizeStatus(r.Status || r.status);
+    const visible = markers.filter(m => {
+      if (currentTerritory) return territoryVisible(m._rec);
+      return baseVisiblePredicate(m._rec);
+    });
+    
+    visible.forEach(m => {
+      const st = normalizeStatus(m._rec.Status || m._rec.status);
       dist[st]++;
     });
     this.context.statusDistribution = dist;
+    this.context.visibleSchools = visible.length;
   }
 
   async processQuery(query) {
     this.updateContext();
     
+    // Build context string
+    let contextStr = this.context.currentTerritory || 'all territories';
+    if (this.context.selectedGroups.length > 0) {
+      contextStr += ` (${this.context.selectedGroups.join(', ')})`;
+    }
+    
     // Simple pattern matching for common queries
     const lowerQuery = query.toLowerCase();
     
     if (lowerQuery.includes('how many schools')) {
-      const visible = markers.filter(m => visiblePredicate(m._rec)).length;
-      return `There are ${this.context.totalSchools} schools total. Currently showing ${visible} schools in ${this.context.currentTerritory || 'all territories'}.`;
+      return `There are ${this.context.totalSchools} schools total. Currently showing ${this.context.visibleSchools} schools in ${contextStr}.`;
     }
     
     if (lowerQuery.includes('status') || lowerQuery.includes('breakdown')) {
       const dist = this.context.statusDistribution;
-      return `Status breakdown:\n• None: ${dist.none}\n• Recent: ${dist.recent}\n• Current: ${dist.current}\n• Staff: ${dist.staff}`;
+      return `Status breakdown for ${contextStr}:\n• None: ${dist.none}\n• Recent: ${dist.recent}\n• Current: ${dist.current}\n• Staff: ${dist.staff}`;
+    }
+    
+    if (lowerQuery.includes('group') && this.context.selectedGroups.length > 0) {
+      const groups = this.context.selectedGroups;
+      const groupData = markers.filter(m => {
+        const g = (m._rec.Group || m._rec.group || '').trim();
+        return groups.includes(g) && (currentTerritory ? territoryVisible(m._rec) : baseVisiblePredicate(m._rec));
+      });
+      return `Selected group(s): ${groups.join(', ')}\nSchools in selection: ${groupData.length}\nThis represents ${Math.round(groupData.length/this.context.visibleSchools*100)}% of visible schools in ${this.context.currentTerritory || 'the current view'}.`;
     }
     
     if (lowerQuery.includes('territory') && lowerQuery.includes('most')) {
@@ -679,38 +707,67 @@ class AIAssistant {
     }
     
     // Default response
-    return `I can help you with:\n• School counts and statistics\n• Territory analysis\n• Status breakdowns\n• Route optimization\n• Strategic recommendations\n\nWhat would you like to know?`;
+    return `I can help you with:\n• School counts and statistics\n• Territory analysis\n• Group-specific insights\n• Status breakdowns\n• Route optimization\n• Strategic recommendations\n\nCurrent context: ${contextStr}\n\nWhat would you like to know?`;
   }
 
   generateRecommendation() {
-    const visible = markers.filter(m => visiblePredicate(m._rec));
+    const visible = markers.filter(m => {
+      if (currentTerritory) return territoryVisible(m._rec);
+      return baseVisiblePredicate(m._rec);
+    });
     const noneCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'none').length;
     
+    // Build context for recommendations
+    let context = '';
+    if (this.context.selectedGroups.length > 0) {
+      context = ` for ${this.context.selectedGroups.join(', ')}`;
+    }
+    if (this.context.currentTerritory) {
+      context += ` in ${this.context.currentTerritory}`;
+    }
+    
+    if (visible.length === 0) {
+      return `📊 No schools found${context}. Try adjusting your filters or selecting a different territory/group.`;
+    }
+    
     if (noneCount > visible.length * 0.5) {
-      return `📊 Recommendation: Focus on converting "None" status schools. You have ${noneCount} uncontacted schools (${Math.round(noneCount/visible.length*100)}%) in the current view. Consider prioritizing clusters of nearby schools for efficient outreach.`;
+      return `📊 Recommendation: Focus on converting "None" status schools${context}. You have ${noneCount} uncontacted schools (${Math.round(noneCount/visible.length*100)}%) in the current view. Consider prioritizing clusters of nearby schools for efficient outreach.`;
     }
     
     const recentCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'recent').length;
     if (recentCount > visible.length * 0.3) {
-      return `📊 Recommendation: Follow up with "Recent" contacts. You have ${recentCount} schools (${Math.round(recentCount/visible.length*100)}%) that were recently contacted. These warm leads have higher conversion potential.`;
+      return `📊 Recommendation: Follow up with "Recent" contacts${context}. You have ${recentCount} schools (${Math.round(recentCount/visible.length*100)}%) that were recently contacted. These warm leads have higher conversion potential.`;
     }
     
-    return `📊 Recommendation: Your territory coverage looks good! Consider expanding to adjacent areas or deepening relationships with current schools.`;
+    return `📊 Recommendation: Your coverage${context} looks good! Consider expanding to adjacent areas or deepening relationships with current schools.`;
   }
 
   suggestRoute() {
-    const visible = markers.filter(m => visiblePredicate(m._rec) && normalizeStatus(m._rec.Status) === 'none');
+    const visible = markers.filter(m => {
+      const isVisible = currentTerritory ? territoryVisible(m._rec) : baseVisiblePredicate(m._rec);
+      return isVisible && normalizeStatus(m._rec.Status) === 'none';
+    });
+    
+    // Build context string
+    let context = '';
+    if (this.context.selectedGroups.length > 0) {
+      context = ` for ${this.context.selectedGroups.join(', ')}`;
+    }
+    if (this.context.currentTerritory) {
+      context += ` in ${this.context.currentTerritory}`;
+    }
+    
     if (visible.length === 0) {
-      return `✅ No uncontacted schools in the current view. Great coverage!`;
+      return `✅ No uncontacted schools${context}. Great coverage!`;
     }
     
     // Simple clustering suggestion
     const clusters = this.findClusters(visible.map(m => m._rec));
     if (clusters.length > 0) {
-      return `🗺️ Route suggestion: I found ${clusters.length} clusters of uncontacted schools. The largest cluster has ${clusters[0].length} schools near ${clusters[0][0].Address || 'the area'}. Focus on this area for efficient visits.`;
+      return `🗺️ Route suggestion${context}: I found ${clusters.length} clusters of uncontacted schools. The largest cluster has ${clusters[0].length} schools near ${clusters[0][0].Address || 'the area'}. Focus on this area for efficient visits.`;
     }
     
-    return `🗺️ Found ${visible.length} uncontacted schools. They're spread out, so consider planning multiple trip days.`;
+    return `🗺️ Found ${visible.length} uncontacted schools${context}. They're spread out, so consider planning multiple trip days.`;
   }
 
   findClusters(schools) {
@@ -795,48 +852,108 @@ function performAISearch(query) {
 
 // Territory Insights
 function updateTerritoryInsights() {
-  if (!currentTerritory) {
-    document.getElementById('territoryStats').innerHTML = '<div class="muted">Select a territory to see insights</div>';
+  // Get selected groups
+  const groupSel = document.getElementById('groupSel');
+  const selectedGroups = Array.from(groupSel.selectedOptions).map(o => o.value);
+  const hasGroupFilter = selectedGroups.length > 0;
+  
+  if (!currentTerritory && !hasGroupFilter) {
+    document.getElementById('territoryStats').innerHTML = '<div class="muted">Select a territory or group to see insights</div>';
+    document.getElementById('aiRecommendations').innerHTML = '<div class="muted">Insights will appear here</div>';
     return;
   }
   
-  const visible = markers.filter(m => territoryVisible(m._rec));
+  // Filter markers based on current filters (territory + groups + status)
+  const visible = markers.filter(m => {
+    // Use the full filter predicate to respect all current filters
+    if (currentTerritory) {
+      return territoryVisible(m._rec);
+    } else {
+      // If no territory selected but groups are selected, show group data
+      return baseVisiblePredicate(m._rec);
+    }
+  });
+  
   const statusCounts = {none:0, recent:0, current:0, staff:0};
+  const groupCounts = {};
   
   visible.forEach(m => {
     const st = normalizeStatus(m._rec.Status || m._rec.status);
     statusCounts[st]++;
+    
+    const group = (m._rec.Group || m._rec.group || 'No Group').trim();
+    groupCounts[group] = (groupCounts[group] || 0) + 1;
   });
   
   const total = visible.length;
   const coverage = total > 0 ? Math.round((statusCounts.current + statusCounts.staff) / total * 100) : 0;
   
+  // Build context label
+  let contextLabel = '';
+  if (currentTerritory && hasGroupFilter) {
+    contextLabel = `<div style="font-weight:600; color:#6a1b9a; margin-bottom:8px;">
+      ${currentTerritory.name} - ${selectedGroups.join(', ')}
+    </div>`;
+  } else if (currentTerritory) {
+    contextLabel = `<div style="font-weight:600; color:#6a1b9a; margin-bottom:8px;">
+      ${currentTerritory.name} - All Groups
+    </div>`;
+  } else if (hasGroupFilter) {
+    contextLabel = `<div style="font-weight:600; color:#6a1b9a; margin-bottom:8px;">
+      All Territories - ${selectedGroups.join(', ')}
+    </div>`;
+  }
+  
+  // Update stats display
   document.getElementById('territoryStats').innerHTML = `
+    ${contextLabel}
     <div class="ai-stat"><span>Total Schools:</span><strong>${total}</strong></div>
     <div class="ai-stat"><span>Coverage:</span><strong>${coverage}%</strong></div>
     <div class="ai-stat"><span>Uncontacted:</span><strong>${statusCounts.none}</strong></div>
     <div class="ai-stat"><span>Recent:</span><strong>${statusCounts.recent}</strong></div>
     <div class="ai-stat"><span>Current:</span><strong>${statusCounts.current}</strong></div>
     <div class="ai-stat"><span>Staff:</span><strong>${statusCounts.staff}</strong></div>
+    ${hasGroupFilter && Object.keys(groupCounts).length > 0 ? 
+      `<div style="margin-top:8px; padding-top:8px; border-top:1px solid #e0e0e0;">
+        <strong>Group Breakdown:</strong><br>
+        ${Object.entries(groupCounts).map(([g,c]) => 
+          `<div class="ai-stat"><span>${g}:</span><strong>${c}</strong></div>`
+        ).join('')}
+      </div>` : ''}
   `;
   
-  // Generate AI recommendations
+  // Generate AI recommendations based on context
   let recommendations = [];
   
-  if (statusCounts.none > total * 0.4) {
-    recommendations.push(`High opportunity: ${statusCounts.none} uncontacted schools`);
-  }
-  if (statusCounts.recent > 5) {
-    recommendations.push(`Follow up with ${statusCounts.recent} recent contacts`);
-  }
-  if (coverage < 30) {
-    recommendations.push(`Low coverage area - prioritize for growth`);
-  } else if (coverage > 70) {
-    recommendations.push(`Strong coverage - focus on retention`);
-  }
-  
-  if (recommendations.length === 0) {
-    recommendations.push(`Balanced territory - maintain current strategy`);
+  if (total === 0) {
+    recommendations.push(`No schools found with current filters. Try adjusting your selection.`);
+  } else {
+    if (statusCounts.none > total * 0.4) {
+      recommendations.push(`High opportunity: ${statusCounts.none} uncontacted schools${hasGroupFilter ? ' in selected group(s)' : ''}`);
+    }
+    if (statusCounts.recent > 5) {
+      recommendations.push(`Follow up with ${statusCounts.recent} recent contacts${hasGroupFilter ? ' in ' + selectedGroups.join(', ') : ''}`);
+    }
+    if (coverage < 30) {
+      recommendations.push(`Low coverage (${coverage}%) - prioritize for growth`);
+    } else if (coverage > 70) {
+      recommendations.push(`Strong coverage (${coverage}%) - focus on retention`);
+    }
+    
+    // Group-specific recommendations
+    if (hasGroupFilter && selectedGroups.length === 1) {
+      const groupName = selectedGroups[0];
+      if (statusCounts.none > 0) {
+        recommendations.push(`Target ${statusCounts.none} uncontacted ${groupName} schools for expansion`);
+      }
+      if (statusCounts.current > statusCounts.staff) {
+        recommendations.push(`Consider upgrading ${groupName} relationships from current to staff level`);
+      }
+    }
+    
+    if (recommendations.length === 0) {
+      recommendations.push(`Balanced ${hasGroupFilter ? 'group' : 'territory'} - maintain current strategy`);
+    }
   }
   
   document.getElementById('aiRecommendations').innerHTML = recommendations
@@ -924,6 +1041,10 @@ async function init(){
       if (visiblePredicate(r)) m.addTo(map);
     }
   }
+  
+  // Initialize insights
+  updateTerritoryInsights();
+  
   log('init ← done');
 }
 
@@ -933,8 +1054,20 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   // Original event listeners
   document.getElementById('territorySel').addEventListener('change', onTerritoryChange);
-  document.getElementById('groupSel').addEventListener('change', updateFilter);
-  document.querySelectorAll('.statusChk').forEach(cb=>cb.addEventListener('change', updateFilter));
+  document.getElementById('groupSel').addEventListener('change', ()=>{
+    updateFilter();
+    // Auto-switch to Insights tab when a group is selected
+    const groupSel = document.getElementById('groupSel');
+    if (groupSel.selectedOptions.length > 0) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.querySelector('[data-tab="insights"]').classList.add('active');
+      document.getElementById('insights-content').classList.add('active');
+    }
+  });
+  document.querySelectorAll('.statusChk').forEach(cb=>cb.addEventListener('change', ()=>{
+    updateFilter();
+  }));
   document.getElementById('btnSearch').addEventListener('click', updateFilter);
   document.getElementById('btnClearSearch').addEventListener('click',()=>{document.getElementById('searchBox').value=''; updateFilter()});
   document.getElementById('searchBox').addEventListener('keydown',e=>{if(e.key==='Enter') updateFilter()});
@@ -946,8 +1079,22 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('btnToggleList').textContent=LIST_ON?'List View: ON':'List View: OFF';
     if(LIST_ON) updateList();
   });
-  document.getElementById('groupSelectAll').addEventListener('click',()=>{const s=document.getElementById('groupSel'); for(const o of s.options) o.selected=true; updateFilter()});
-  document.getElementById('groupClear').addEventListener('click',()=>{const s=document.getElementById('groupSel'); for(const o of s.options) o.selected=false; updateFilter()});
+  document.getElementById('groupSelectAll').addEventListener('click',()=>{
+    const s=document.getElementById('groupSel'); 
+    for(const o of s.options) o.selected=true; 
+    updateFilter();
+    // Auto-switch to Insights tab
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector('[data-tab="insights"]').classList.add('active');
+    document.getElementById('insights-content').classList.add('active');
+  });
+  
+  document.getElementById('groupClear').addEventListener('click',()=>{
+    const s=document.getElementById('groupSel'); 
+    for(const o of s.options) o.selected=false; 
+    updateFilter();
+  });
 
   // CSV downloads
   document.getElementById('btnDownloadAll').addEventListener('click', ()=>{
@@ -1034,8 +1181,11 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   // AI Analysis buttons
   document.getElementById('btnAnalyzeTerritory').addEventListener('click', () => {
-    if (!currentTerritory) {
-      showToast('Please select a territory first', 'error');
+    const groupSel = document.getElementById('groupSel');
+    const hasGroups = groupSel.selectedOptions.length > 0;
+    
+    if (!currentTerritory && !hasGroups) {
+      showToast('Please select a territory or group first', 'error');
       return;
     }
     
@@ -1046,7 +1196,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('insights-content').classList.add('active');
     
     updateTerritoryInsights();
-    showToast('Territory analysis complete');
+    showToast('Analysis complete');
   });
 
   document.getElementById('btnFindOptimal').addEventListener('click', async () => {
@@ -1060,11 +1210,25 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 
   document.getElementById('btnPredictGrowth').addEventListener('click', () => {
-    const visible = markers.filter(m => visiblePredicate(m._rec));
+    const visible = markers.filter(m => {
+      if (currentTerritory) return territoryVisible(m._rec);
+      return baseVisiblePredicate(m._rec);
+    });
     const noneCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'none').length;
-    const growthPotential = Math.round(noneCount / visible.length * 100);
+    const growthPotential = visible.length > 0 ? Math.round(noneCount / visible.length * 100) : 0;
     
-    const prediction = `📈 Growth Prediction:\n\nCurrent territory has ${growthPotential}% growth potential with ${noneCount} uncontacted schools.\n\nProjected outcomes:\n• Conservative: Convert 20% = ${Math.round(noneCount * 0.2)} new clients\n• Moderate: Convert 35% = ${Math.round(noneCount * 0.35)} new clients\n• Aggressive: Convert 50% = ${Math.round(noneCount * 0.5)} new clients\n\nRecommended focus: ${growthPotential > 40 ? 'High priority territory' : growthPotential > 20 ? 'Moderate opportunity' : 'Maintenance mode'}`;
+    // Build context
+    const groupSel = document.getElementById('groupSel');
+    const selectedGroups = Array.from(groupSel.selectedOptions).map(o => o.value);
+    let context = '';
+    if (selectedGroups.length > 0) {
+      context = ` for ${selectedGroups.join(', ')}`;
+    }
+    if (currentTerritory) {
+      context += ` in ${currentTerritory.name}`;
+    }
+    
+    const prediction = `📈 Growth Prediction${context}:\n\nCurrent view has ${growthPotential}% growth potential with ${noneCount} uncontacted schools.\n\nProjected outcomes:\n• Conservative: Convert 20% = ${Math.round(noneCount * 0.2)} new clients\n• Moderate: Convert 35% = ${Math.round(noneCount * 0.35)} new clients\n• Aggressive: Convert 50% = ${Math.round(noneCount * 0.5)} new clients\n\nRecommended focus: ${growthPotential > 40 ? 'High priority area' : growthPotential > 20 ? 'Moderate opportunity' : 'Maintenance mode'}`;
     
     // Show in AI chat
     document.getElementById('aiPanel').classList.add('active');
