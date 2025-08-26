@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NS Schools Map with AI (Live v14.0)</title>
+<title>NS Schools Map with AI (Live v14.1)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   html, body, #map { height:100%; margin:0; }
@@ -43,10 +43,42 @@
   .tab-content { display:none; }
   .tab-content.active { display:block; }
 
+  /* Insights Panel - always visible */
+  #insightsPanel {
+    position:fixed; top:20px; right:20px; z-index:9998;
+    width:320px; background:#fff;
+    border:1px solid #ccc; border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.15);
+    font-family:system-ui, -apple-system, sans-serif;
+    font-size:13px;
+    transition: all 0.3s ease;
+  }
+  #insightsPanel.highlighted {
+    box-shadow:0 0 12px rgba(106, 27, 154, 0.4);
+    border-color:#6a1b9a;
+  }
+  #insightsHeader {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 10px; border-bottom:1px solid #e6e6e6; 
+    background:#f7f7f9; border-radius:10px 10px 0 0;
+  }
+  #insightsHeader.has-update {
+    background:linear-gradient(135deg, #f7f7f9 0%, #f0e6ff 100%);
+  }
+  #insightsBody {
+    padding:12px; max-height:400px; overflow:auto;
+  }
+  #btnCollapseInsights {
+    cursor:pointer; border:1px solid #fff; border-radius:6px; 
+    background:#6a1b9a; padding:2px 6px; font-size:12px; color:#fff;
+  }
+  #insightsPanel.is-collapsed #insightsBody { display:none; }
+  #insightsPanel.is-collapsed { max-height:unset; }
+  
   /* AI Assistant Panel */
   #aiPanel {
-    position:fixed; top:20px; right:20px; z-index:9998;
-    width:380px; height:500px; background:#fff;
+    position:fixed; top:460px; right:20px; z-index:9997;
+    width:320px; height:360px; background:#fff;
     border:1px solid #ccc; border-radius:10px;
     box-shadow:0 2px 6px rgba(0,0,0,0.15);
     font-family:system-ui, -apple-system, sans-serif;
@@ -156,7 +188,44 @@
   .row>*{flex:1;}
   .popup-row{margin-top:6px}
   .popup-row select{padding:2px 4px; font-size:12px;}
-  .popup-row button{padding:2px 6px; font-size:12px; cursor:pointer;}
+  
+  /* Enhanced popup styling */
+  .leaflet-popup-content {
+    min-width:250px;
+    max-width:350px;
+  }
+  .leaflet-popup-content textarea {
+    font-family:system-ui, -apple-system, sans-serif;
+  }
+  .leaflet-popup-content button[data-role="save-changes"] {
+    background:#6a1b9a;
+    color:#fff;
+    border:none;
+    border-radius:6px;
+    padding:6px 12px;
+    font-weight:500;
+    cursor:pointer;
+    font-size:13px;
+    transition:background .2s;
+  }
+  .leaflet-popup-content button[data-role="save-changes"]:hover:not(:disabled) {
+    background:#8e24aa;
+  }
+  .leaflet-popup-content button[data-role="save-changes"]:disabled {
+    background:#ccc;
+    color:#666;
+    cursor:default;
+  }
+  .leaflet-popup-content button[data-role="add-timestamp"] {
+    background:#f0f0f3;
+    color:#333;
+    border:1px solid #ddd;
+    cursor:pointer;
+    transition:background .2s;
+  }
+  .leaflet-popup-content button[data-role="add-timestamp"]:hover {
+    background:#e6e6e9;
+  }
 
   /* Toast */
   #toast {
@@ -183,7 +252,8 @@
     #legend { left:12px; bottom:12px; }
     #toast { right:12px; bottom:12px; max-width:75vw; }
     #log { right:12px; bottom:150px; max-width:75vw; }
-    #aiPanel { width:90vw; right:5vw; height:60vh; }
+    #insightsPanel { width:90vw; right:5vw; top:auto; bottom:160px; }
+    #aiPanel { width:90vw; right:5vw; height:60vh; top:auto; bottom:250px; }
   }
 </style>
 </head>
@@ -195,17 +265,16 @@
   <div class="title">
     <img src="madscience-logo.png" alt="Mad Science" style="height:28px; margin-right:8px;">
     <span>Filters & AI Tools</span>
-    <span class="badge">AI v14.0</span>
+    <span class="badge">AI v14.1</span>
   </div>
   <button id="btnCollapsePanel" title="Collapse/Expand">Collapse</button>
 </div>
 
   <div id="panelBody">
-    <!-- Tabs -->
+    <!-- Tabs for Filters and AI Tools only -->
     <div class="tabs">
       <div class="tab active" data-tab="filters">Filters</div>
       <div class="tab" data-tab="ai-tools">AI Tools</div>
-      <div class="tab" data-tab="insights">Insights</div>
     </div>
 
     <!-- Filters Tab (Original Content) -->
@@ -221,8 +290,14 @@
         <div style="font-weight:600; margin-bottom:4px;">Status</div>
         <label><input type="checkbox" class="statusChk" value="none" checked> None</label><br>
         <label><input type="checkbox" class="statusChk" value="recent" checked> Recent</label><br>
-        <label><input type="checkbox" class="statusChk" value="current" checked> Current</label><br>
-        <label><input type="checkbox" class="statusChk" value="staff" checked> Staff</label>
+        <label><input type="checkbox" class="statusChk" value="inprogress" checked> In Progress</label><br>
+        <label><input type="checkbox" class="statusChk" value="current" checked> Current</label>
+      </div>
+
+      <div style="margin-bottom:8px;">
+        <label style="font-weight:600;">
+          <input type="checkbox" id="showStaffChk" checked> Show Mad Scientists
+        </label>
       </div>
 
       <div style="margin-bottom:8px;">
@@ -283,19 +358,23 @@
         <button id="btnGenerateReport" type="button" style="width:100%;">Generate AI Report</button>
       </div>
     </div>
+  </div>
+</div>
 
-    <!-- Insights Tab -->
-    <div id="insights-content" class="tab-content">
-      <div id="insightsArea">
-        <div class="ai-analysis-card">
-          <h4 style="margin:0 0 8px 0;">Territory Overview</h4>
-          <div id="territoryStats"></div>
-        </div>
-        <div class="ai-analysis-card">
-          <h4 style="margin:0 0 8px 0;">AI Recommendations</h4>
-          <div id="aiRecommendations"></div>
-        </div>
-      </div>
+<!-- Insights Panel (Always Visible) -->
+<div id="insightsPanel">
+  <div id="insightsHeader">
+    <div style="font-weight:700; font-size:14px;">📊 Live Insights</div>
+    <button id="btnCollapseInsights" title="Collapse/Expand">Collapse</button>
+  </div>
+  <div id="insightsBody">
+    <div class="ai-analysis-card">
+      <h4 style="margin:0 0 8px 0;">Overview</h4>
+      <div id="territoryStats"></div>
+    </div>
+    <div class="ai-analysis-card">
+      <h4 style="margin:0 0 8px 0;">AI Recommendations</h4>
+      <div id="aiRecommendations"></div>
     </div>
   </div>
 </div>
@@ -320,6 +399,7 @@
   <div style="font-weight:700; margin-bottom:6px;">Status Legend</div>
   <div><span class="swatch" style="background:#808080;"></span> None</div>
   <div><span class="swatch" style="background:#1f77b4;"></span> Recent</div>
+  <div><span class="swatch" style="background:#ff7f0e;"></span> In Progress</div>
   <div><span class="swatch" style="background:#2ca02c;"></span> Current</div>
   <div><span class="swatch" style="background:#800080;"></span> Staff</div>
 </div>
@@ -342,7 +422,7 @@ const WRITE_ENDPOINT  = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CM
 const WRITE_SECRET    = "123456pooydiapers";
 const SHEET_TAB_NAME  = "Sheet1";
 const TERRITORIES_URL = "territories.json";
-const COLOR = { none:"#808080", recent:"#1f77b4", current:"#2ca02c", staff:"#800080" };
+const COLOR = { none:"#808080", recent:"#1f77b4", current:"#2ca02c", inprogress:"#ff7f0e", staff:"#800080" };
 
 /* ===== Map ===== */
 const map = L.map('map').setView([45.2, -62.99], 7);
@@ -428,10 +508,12 @@ function normalizeRecords(rows){
     const raw=(r.active??r.Active??r.ACTIVE??'').toString().trim().toUpperCase();
     r.active = raw==='' ? true : !(raw==='FALSE'||raw==='0'||raw==='NO'||raw==='N');
     if(r.Id && !Number.isFinite(r.Id)){const n=parseFloat(r.Id); if(Number.isFinite(n)) r.Id=n}
+    // Initialize Notes field if it doesn't exist
+    if(r.Notes === undefined && r.notes === undefined) r.Notes = '';
   });
 }
 function isValidLatLon(lat,lon){return Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180}
-function normalizeStatus(s){s=(s||'').toLowerCase().trim(); if(!['none','recent','current','staff'].includes(s)) s='none'; return s}
+function normalizeStatus(s){s=(s||'').toLowerCase().trim(); if(!['none','recent','inprogress','current','staff'].includes(s)) s='none'; return s}
 function getStatusColor(r){return COLOR[normalizeStatus(r.Status||r.status)]||COLOR.none}
 
 /* Territories */
@@ -461,14 +543,19 @@ function onTerritoryChange(){
 let baseVisiblePredicate = rec => true;
 function updateFilter(){
   const statusSet=new Set(Array.from(document.querySelectorAll('.statusChk')).filter(cb=>cb.checked).map(cb=>cb.value));
+  const showStaff = document.getElementById('showStaffChk').checked;
   const groupSel=document.getElementById('groupSel');
   const groupSet=new Set(Array.from(groupSel.selectedOptions).map(o=>o.value));
   const q=(document.getElementById('searchBox').value||'').trim().toLowerCase();
   baseVisiblePredicate=function(rec){
     if(rec.active===false) return false;
-    if(statusSet.size && !statusSet.has(normalizeStatus(rec.Status||rec.status))) return false;
+    const st = normalizeStatus(rec.Status||rec.status);
+    // Handle staff separately
+    if(st === 'staff') return showStaff;
+    // Check normal statuses
+    if(statusSet.size && !statusSet.has(st)) return false;
     if(groupSet.size){const g=(rec.Group||rec.group||'').trim(); if(!groupSet.has(g)) return false;}
-    if(q){const hay=((rec.School||rec.SchoolName||rec.Name||'')+' '+(rec.Address||'')+' '+(rec.Group||'')).toLowerCase(); if(!hay.includes(q)) return false;}
+    if(q){const hay=((rec.School||rec.SchoolName||rec.Name||'')+' '+(rec.Address||'')+' '+(rec.Group||'')+' '+(rec.Notes||'')).toLowerCase(); if(!hay.includes(q)) return false;}
     return true;
   };
   requestAnimationFrame(()=>{ 
@@ -501,31 +588,50 @@ function applyFilters(){
   }
 }
 
-/* Popups (status change only) */
+/* Popups (status change and notes editing) */
 function formatPhone(p){const raw=String(p||'').trim(); if(!raw) return ''; const digits=raw.replace(/[^\d+]/g,''); return `<a href="tel:${digits}">${raw}</a>`}
 function formatEmail(e){const raw=String(e||'').trim(); if(!raw) return ''; return `<a href="mailto:${raw}">${raw}</a>`}
+function escapeHtml(text){const div=document.createElement('div');div.textContent=text;return div.innerHTML;}
 function buildPopupHTML(rec){
   const name=rec.School||rec.SchoolName||rec.Name||'School';
   const addr=rec.Address||rec.address||'';
   const phone=rec.Phone||rec.phone||rec.Telephone||rec['Phone Number']||rec['Contact Phone']||'';
   const email=rec.Email||rec.email||rec['Email Address']||rec['Contact Email']||'';
   const group=(rec.Group||rec.group||'').trim();
+  const notes=(rec.Notes||rec.notes||'').trim();
   const st=normalizeStatus(rec.Status||rec.status);
   const phoneHTML=phone?`<br>Phone: ${formatPhone(phone)}`:'';
   const emailHTML=email?`<br>Email: ${formatEmail(email)}`:'';
-  const groupHTML=group?`<br>Group: ${group}`:'';
+  const groupHTML=group?`<br>Group: ${escapeHtml(group)}`:'';
   const select = `
     <select data-role="status-select">
-      <option value="none"${st==='none'?' selected':''}>none</option>
-      <option value="recent"${st==='recent'?' selected':''}>recent</option>
-      <option value="current"${st==='current'?' selected':''}>current</option>
-      <option value="staff"${st==='staff'?' selected':''}>staff</option>
+      <option value="none"${st==='none'?' selected':''}>None</option>
+      <option value="recent"${st==='recent'?' selected':''}>Recent</option>
+      <option value="inprogress"${st==='inprogress'?' selected':''}>In Progress</option>
+      <option value="current"${st==='current'?' selected':''}>Current</option>
+      <option value="staff"${st==='staff'?' selected':''}>Staff</option>
     </select>`;
+  const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const notesField = `
+    <div style="margin-top:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <span style="font-weight:600; font-size:12px;">Notes:</span>
+        <button data-role="add-timestamp" style="font-size:11px; padding:2px 6px; border-radius:4px;" type="button">+ Add ${today}</button>
+      </div>
+      <textarea data-role="notes-input" style="width:100%; min-height:50px; padding:4px; font-size:12px; border:1px solid #ddd; border-radius:4px; resize:vertical;" placeholder="Add notes (e.g., Spoke with principal, follow up next week)">${escapeHtml(notes)}</textarea>
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#666; margin-top:2px;">
+        <span>Tip: Press Ctrl+Enter to save</span>
+        <span data-role="char-count">${notes.length} chars</span>
+      </div>
+    </div>`;
   const canUpdateKey = !!(rec.Id || ((rec.School||rec.SchoolName||rec.Name) && rec.Address));
-  const btn = `<button data-role="save-status" ${canUpdateKey?'':'disabled'}>${canUpdateKey?'Save':'Save (no key)'}</button>`;
+  const btn = `<button data-role="save-changes" ${canUpdateKey?'':'disabled'} style="width:100%; margin-top:6px;">${canUpdateKey?'Save All Changes':'Save (no key)'}</button>`;
   const tip = canUpdateKey ? '' : `<div class="muted" style="margin-top:4px;">Add an <strong>Id</strong> column or ensure School & Address exist to enable updates.</div>`;
-  return `<div><strong>${name}</strong><br>${addr}${groupHTML}${phoneHTML}${emailHTML}</div>
-          <div class="popup-row">Status: ${select} ${btn}</div>${tip}`;
+  return `<div><strong>${escapeHtml(name)}</strong><br>${escapeHtml(addr)}${groupHTML}${phoneHTML}${emailHTML}</div>
+          <div class="popup-row">Status: ${select}</div>
+          ${notesField}
+          ${btn}
+          ${tip}`;
 }
 function addCircleFor(rec){
   const m=L.circleMarker([rec.lat,rec.lon],{radius:6,color:getStatusColor(rec),fillColor:getStatusColor(rec),fillOpacity:0.9,weight:1});
@@ -536,29 +642,129 @@ function addCircleFor(rec){
     setTimeout(()=>{
       const container = document.querySelector('.leaflet-popup-content');
       const sel = container && container.querySelector('[data-role="status-select"]');
-      const btn = container && container.querySelector('[data-role="save-status"]');
+      const notesInput = container && container.querySelector('[data-role="notes-input"]');
+      const btn = container && container.querySelector('[data-role="save-changes"]');
+      const timestampBtn = container && container.querySelector('[data-role="add-timestamp"]');
+      const charCount = container && container.querySelector('[data-role="char-count"]');
       if (!sel || !btn) return;
-      btn.addEventListener('click', async ()=>{
+      
+      // Track unsaved changes
+      let hasUnsavedChanges = false;
+      const checkForChanges = () => {
+        const currentSt = sel.value;
+        const currentNotes = notesInput ? notesInput.value.trim() : '';
+        const originalSt = normalizeStatus(rec.Status||rec.status);
+        const originalNotes = (rec.Notes||rec.notes||'').trim();
+        
+        hasUnsavedChanges = (currentSt !== originalSt || currentNotes !== originalNotes);
+        
+        if (hasUnsavedChanges) {
+          btn.style.background = '#ff7f0e';
+          btn.textContent = 'Save Changes*';
+        } else {
+          btn.style.background = '';
+          btn.textContent = 'Save All Changes';
+        }
+        
+        // Update character count
+        if (charCount && notesInput) {
+          charCount.textContent = `${notesInput.value.length} chars`;
+        }
+      };
+      
+      // Monitor changes
+      sel.addEventListener('change', checkForChanges);
+      if (notesInput) {
+        notesInput.addEventListener('input', checkForChanges);
+      }
+      
+      // Add timestamp button handler
+      if (timestampBtn && notesInput) {
+        timestampBtn.addEventListener('click', () => {
+          const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const currentText = notesInput.value;
+          const newText = currentText ? `${currentText}\n${today}: ` : `${today}: `;
+          notesInput.value = newText;
+          notesInput.focus();
+          // Move cursor to end
+          notesInput.setSelectionRange(newText.length, newText.length);
+          checkForChanges();
+        });
+      }
+      
+      // Save function
+      const saveChanges = async () => {
         const newSt = sel.value;
+        const newNotes = notesInput ? notesInput.value.trim() : '';
         const oldSt = normalizeStatus(rec.Status||rec.status);
-        if (newSt === oldSt) return;
-        rec.Status = newSt; // optimistic color change
+        const oldNotes = (rec.Notes||rec.notes||'').trim();
+        
+        // Check if anything changed
+        if (newSt === oldSt && newNotes === oldNotes) {
+          showToast('No changes to save');
+          return;
+        }
+        
+        // Show saving state
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+        
+        // Update local record optimistically
+        rec.Status = newSt;
+        rec.Notes = newNotes;
         m.setStyle({ color: getStatusColor(rec), fillColor: getStatusColor(rec) });
+        
         const keyField = rec.Id ? 'Id' : 'School+Address';
         const keyValue = rec.Id ? String(rec.Id) : JSON.stringify({ School: (rec.School||rec.SchoolName||rec.Name||''), Address: (rec.Address||'') });
+        
+        // Build patch with only changed fields
+        const patch = {};
+        if (newSt !== oldSt) patch.Status = newSt;
+        if (newNotes !== oldNotes) patch.Notes = newNotes;
+        
         try{
-          const res = await updateRowInSheet({ keyField, keyValue, patch: { Status: newSt } });
-          log('status saved row '+(res && res.rowNumber ? res.rowNumber : '?'));
+          const res = await updateRowInSheet({ keyField, keyValue, patch });
+          log('saved changes to row '+(res && res.rowNumber ? res.rowNumber : '?'));
+          
+          // Show what was updated
+          const updates = [];
+          if (newSt !== oldSt) updates.push('status');
+          if (newNotes !== oldNotes) updates.push('notes');
+          showToast(`✅ Updated ${updates.join(' and ')}`);
+          
+          // Refresh popup with new data
           m.setPopupContent(buildPopupHTML(rec));
-          showToast('Status saved');
+          
+          // Update insights if filters might be affected
+          if (newSt !== oldSt) {
+            requestAnimationFrame(() => {
+              applyFilters();
+              updateTerritoryInsights();
+            });
+          }
         }catch(err){
-          log('update FAIL http? see console: '+(err && err.message ? err.message : err));
-          showToast('Could not save status, reverting','error');
+          log('update FAIL: '+(err && err.message ? err.message : err));
+          showToast('❌ Could not save changes, reverting','error');
+          // Revert changes
           rec.Status = oldSt;
+          rec.Notes = oldNotes;
           m.setStyle({ color: getStatusColor(rec), fillColor: getStatusColor(rec) });
           m.setPopupContent(buildPopupHTML(rec));
         }
-      });
+      };
+      
+      // Button click
+      btn.addEventListener('click', saveChanges);
+      
+      // Ctrl+Enter in notes field
+      if (notesInput) {
+        notesInput.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            saveChanges();
+          }
+        });
+      }
     },0);
   });
   markers.push(m);
@@ -583,8 +789,14 @@ function updateList(){
 /* Downloads */
 function toCSV(rows, header){
   const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-  const lines=[header.map(esc).join(',')];
-  rows.forEach(r=>lines.push(header.map(h=>esc(r[h])).join(',')));
+  // Ensure Notes column is included if it exists in data but not header
+  const hasNotes = rows.some(r => r.Notes !== undefined || r.notes !== undefined);
+  const finalHeader = [...header];
+  if (hasNotes && !header.includes('Notes') && !header.includes('notes')) {
+    finalHeader.push('Notes');
+  }
+  const lines=[finalHeader.map(esc).join(',')];
+  rows.forEach(r=>lines.push(finalHeader.map(h=>esc(r[h])).join(',')));
   return lines.join('\n');
 }
 function download(filename, text){
@@ -601,7 +813,7 @@ function download(filename, text){
   });
 }
 
-/* Server call: status update only */
+/* Server call: update status and/or notes */
 async function updateRowInSheet({ keyField, keyValue, patch }){
   const res = await fetchWithTimeout(WRITE_ENDPOINT, {
     method: 'POST',
@@ -641,7 +853,7 @@ class AIAssistant {
     this.context.selectedGroups = Array.from(groupSel.selectedOptions).map(o => o.value);
     
     // Calculate status distribution for visible schools
-    const dist = {none:0, recent:0, current:0, staff:0};
+    const dist = {none:0, recent:0, inprogress:0, current:0, staff:0};
     const visible = markers.filter(m => {
       if (currentTerritory) return territoryVisible(m._rec);
       return baseVisiblePredicate(m._rec);
@@ -673,7 +885,7 @@ class AIAssistant {
     
     if (lowerQuery.includes('status') || lowerQuery.includes('breakdown')) {
       const dist = this.context.statusDistribution;
-      return `Status breakdown for ${contextStr}:\n• None: ${dist.none}\n• Recent: ${dist.recent}\n• Current: ${dist.current}\n• Staff: ${dist.staff}`;
+      return `Status breakdown for ${contextStr}:\n• None: ${dist.none}\n• Recent: ${dist.recent}\n• In Progress: ${dist.inprogress}\n• Current: ${dist.current}\n• Staff: ${dist.staff}`;
     }
     
     if (lowerQuery.includes('group') && this.context.selectedGroups.length > 0) {
@@ -707,7 +919,7 @@ class AIAssistant {
     }
     
     // Default response
-    return `I can help you with:\n• School counts and statistics\n• Territory analysis\n• Group-specific insights\n• Status breakdowns\n• Route optimization\n• Strategic recommendations\n\nCurrent context: ${contextStr}\n\nWhat would you like to know?`;
+    return `I can help you with:\n• School counts and statistics\n• Territory analysis\n• Group-specific insights\n• Status breakdowns\n• Route optimization\n• Strategic recommendations\n\nCurrent context: ${contextStr}\n\nTip: Click any school marker to update status and add/edit notes directly!\n\nWhat would you like to know?`;
   }
 
   generateRecommendation() {
@@ -716,6 +928,7 @@ class AIAssistant {
       return baseVisiblePredicate(m._rec);
     });
     const noneCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'none').length;
+    const inProgressCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'inprogress').length;
     
     // Build context for recommendations
     let context = '';
@@ -730,13 +943,17 @@ class AIAssistant {
       return `📊 No schools found${context}. Try adjusting your filters or selecting a different territory/group.`;
     }
     
+    if (inProgressCount > visible.length * 0.2) {
+      return `📊 Recommendation: Focus on closing deals${context}. You have ${inProgressCount} schools (${Math.round(inProgressCount/visible.length*100)}%) in progress. Schedule follow-ups to convert them to current clients.`;
+    }
+    
     if (noneCount > visible.length * 0.5) {
       return `📊 Recommendation: Focus on converting "None" status schools${context}. You have ${noneCount} uncontacted schools (${Math.round(noneCount/visible.length*100)}%) in the current view. Consider prioritizing clusters of nearby schools for efficient outreach.`;
     }
     
     const recentCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'recent').length;
     if (recentCount > visible.length * 0.3) {
-      return `📊 Recommendation: Follow up with "Recent" contacts${context}. You have ${recentCount} schools (${Math.round(recentCount/visible.length*100)}%) that were recently contacted. These warm leads have higher conversion potential.`;
+      return `📊 Recommendation: Move recent contacts to "In Progress"${context}. You have ${recentCount} schools (${Math.round(recentCount/visible.length*100)}%) that were recently contacted. Follow up to advance these opportunities.`;
     }
     
     return `📊 Recommendation: Your coverage${context} looks good! Consider expanding to adjacent areas or deepening relationships with current schools.`;
@@ -821,11 +1038,13 @@ function performAISearch(query) {
     const schoolName = (rec.School || rec.SchoolName || rec.Name || '').toLowerCase();
     const address = (rec.Address || '').toLowerCase();
     const group = (rec.Group || '').toLowerCase();
+    const notes = (rec.Notes || '').toLowerCase();
     
     // Check for exact matches
     if (schoolName.includes(lowerQuery)) score += 10;
     if (address.includes(lowerQuery)) score += 5;
     if (group.includes(lowerQuery)) score += 3;
+    if (notes.includes(lowerQuery)) score += 4;
     
     // Check for individual words
     const words = lowerQuery.split(' ');
@@ -833,13 +1052,21 @@ function performAISearch(query) {
       if (word.length > 2) {
         if (schoolName.includes(word)) score += 2;
         if (address.includes(word)) score += 1;
+        if (notes.includes(word)) score += 1;
       }
     });
     
     // Status-based queries
     if (lowerQuery.includes('uncontacted') && normalizeStatus(rec.Status) === 'none') score += 8;
     if (lowerQuery.includes('recent') && normalizeStatus(rec.Status) === 'recent') score += 8;
+    if (lowerQuery.includes('in progress') && normalizeStatus(rec.Status) === 'inprogress') score += 8;
     if (lowerQuery.includes('current') && normalizeStatus(rec.Status) === 'current') score += 8;
+    if (lowerQuery.includes('staff') && normalizeStatus(rec.Status) === 'staff') score += 8;
+    
+    // Notes-specific queries
+    if (lowerQuery.includes('with notes') && notes.length > 0) score += 6;
+    if (lowerQuery.includes('email') && notes.includes('email')) score += 5;
+    if (lowerQuery.includes('contacted') && notes.length > 0) score += 4;
     
     if (score > 0) {
       results.push({rec, score});
@@ -852,6 +1079,16 @@ function performAISearch(query) {
 
 // Territory Insights
 function updateTerritoryInsights() {
+  // Highlight the insights panel briefly to show it updated
+  const panel = document.getElementById('insightsPanel');
+  const header = document.getElementById('insightsHeader');
+  panel.classList.add('highlighted');
+  header.classList.add('has-update');
+  setTimeout(() => {
+    panel.classList.remove('highlighted');
+    header.classList.remove('has-update');
+  }, 1500);
+  
   // Get selected groups
   const groupSel = document.getElementById('groupSel');
   const selectedGroups = Array.from(groupSel.selectedOptions).map(o => o.value);
@@ -874,7 +1111,7 @@ function updateTerritoryInsights() {
     }
   });
   
-  const statusCounts = {none:0, recent:0, current:0, staff:0};
+  const statusCounts = {none:0, recent:0, inprogress:0, current:0, staff:0};
   const groupCounts = {};
   
   visible.forEach(m => {
@@ -887,6 +1124,7 @@ function updateTerritoryInsights() {
   
   const total = visible.length;
   const coverage = total > 0 ? Math.round((statusCounts.current + statusCounts.staff) / total * 100) : 0;
+  const inProgressRate = total > 0 ? Math.round(statusCounts.inprogress / total * 100) : 0;
   
   // Build context label
   let contextLabel = '';
@@ -909,10 +1147,14 @@ function updateTerritoryInsights() {
     ${contextLabel}
     <div class="ai-stat"><span>Total Schools:</span><strong>${total}</strong></div>
     <div class="ai-stat"><span>Coverage:</span><strong>${coverage}%</strong></div>
-    <div class="ai-stat"><span>Uncontacted:</span><strong>${statusCounts.none}</strong></div>
-    <div class="ai-stat"><span>Recent:</span><strong>${statusCounts.recent}</strong></div>
-    <div class="ai-stat"><span>Current:</span><strong>${statusCounts.current}</strong></div>
-    <div class="ai-stat"><span>Staff:</span><strong>${statusCounts.staff}</strong></div>
+    <div class="ai-stat"><span>In Progress:</span><strong>${inProgressRate}%</strong></div>
+    <div style="margin-top:8px; padding-top:8px; border-top:1px solid #e0e0e0;">
+      <div class="ai-stat"><span>Uncontacted:</span><strong>${statusCounts.none}</strong></div>
+      <div class="ai-stat"><span>Recent:</span><strong>${statusCounts.recent}</strong></div>
+      <div class="ai-stat"><span>In Progress:</span><strong>${statusCounts.inprogress}</strong></div>
+      <div class="ai-stat"><span>Current:</span><strong>${statusCounts.current}</strong></div>
+      <div class="ai-stat"><span>Staff:</span><strong>${statusCounts.staff}</strong></div>
+    </div>
     ${hasGroupFilter && Object.keys(groupCounts).length > 0 ? 
       `<div style="margin-top:8px; padding-top:8px; border-top:1px solid #e0e0e0;">
         <strong>Group Breakdown:</strong><br>
@@ -928,11 +1170,14 @@ function updateTerritoryInsights() {
   if (total === 0) {
     recommendations.push(`No schools found with current filters. Try adjusting your selection.`);
   } else {
+    if (statusCounts.inprogress > 0) {
+      recommendations.push(`${statusCounts.inprogress} schools in progress - follow up to close deals`);
+    }
     if (statusCounts.none > total * 0.4) {
       recommendations.push(`High opportunity: ${statusCounts.none} uncontacted schools${hasGroupFilter ? ' in selected group(s)' : ''}`);
     }
     if (statusCounts.recent > 5) {
-      recommendations.push(`Follow up with ${statusCounts.recent} recent contacts${hasGroupFilter ? ' in ' + selectedGroups.join(', ') : ''}`);
+      recommendations.push(`Move ${statusCounts.recent} recent contacts to "In Progress"`);
     }
     if (coverage < 30) {
       recommendations.push(`Low coverage (${coverage}%) - prioritize for growth`);
@@ -944,10 +1189,10 @@ function updateTerritoryInsights() {
     if (hasGroupFilter && selectedGroups.length === 1) {
       const groupName = selectedGroups[0];
       if (statusCounts.none > 0) {
-        recommendations.push(`Target ${statusCounts.none} uncontacted ${groupName} schools for expansion`);
+        recommendations.push(`Target ${statusCounts.none} uncontacted ${groupName} schools`);
       }
-      if (statusCounts.current > statusCounts.staff) {
-        recommendations.push(`Consider upgrading ${groupName} relationships from current to staff level`);
+      if (statusCounts.inprogress > statusCounts.current) {
+        recommendations.push(`Good pipeline: More schools in progress than current`);
       }
     }
     
@@ -972,13 +1217,18 @@ async function generateAIReport() {
   report.push(`• Total Schools: ${DATA.length}`);
   report.push(`• Active Territories: ${TERRITORIES.length}`);
   
+  // Count schools with notes
+  const withNotes = DATA.filter(r => (r.Notes || r.notes || '').trim().length > 0).length;
+  report.push(`• Schools with notes: ${withNotes} (${Math.round(withNotes/DATA.length*100)}%)`);
+  
   // Status breakdown
-  const statusDist = {none:0, recent:0, current:0, staff:0};
+  const statusDist = {none:0, recent:0, inprogress:0, current:0, staff:0};
   DATA.forEach(r => statusDist[normalizeStatus(r.Status || r.status)]++);
   
   report.push(`\n**Status Distribution:**`);
   report.push(`• Uncontacted: ${statusDist.none} (${Math.round(statusDist.none/DATA.length*100)}%)`);
   report.push(`• Recent: ${statusDist.recent} (${Math.round(statusDist.recent/DATA.length*100)}%)`);
+  report.push(`• In Progress: ${statusDist.inprogress} (${Math.round(statusDist.inprogress/DATA.length*100)}%)`);
   report.push(`• Current: ${statusDist.current} (${Math.round(statusDist.current/DATA.length*100)}%)`);
   report.push(`• Staff: ${statusDist.staff} (${Math.round(statusDist.staff/DATA.length*100)}%)`);
   
@@ -999,11 +1249,17 @@ async function generateAIReport() {
   
   // Recommendations
   report.push(`\n**Strategic Recommendations:**`);
+  if (statusDist.inprogress > DATA.length * 0.1) {
+    report.push(`• Strong pipeline: ${statusDist.inprogress} schools in progress - focus on closing`);
+  }
   if (statusDist.none > DATA.length * 0.3) {
     report.push(`• High growth opportunity with ${statusDist.none} uncontacted schools`);
   }
-  if (statusDist.recent > DATA.length * 0.2) {
-    report.push(`• Prioritize converting ${statusDist.recent} recent contacts to current`);
+  if (statusDist.recent > DATA.length * 0.15) {
+    report.push(`• Move ${statusDist.recent} recent contacts to "In Progress"`);
+  }
+  if (withNotes < DATA.length * 0.3) {
+    report.push(`• Improve documentation: Only ${Math.round(withNotes/DATA.length*100)}% of schools have notes`);
   }
   report.push(`• Focus on territories with highest uncontacted density`);
   report.push(`• Implement cluster-based outreach for efficiency`);
@@ -1054,20 +1310,9 @@ document.addEventListener('DOMContentLoaded',()=>{
 
   // Original event listeners
   document.getElementById('territorySel').addEventListener('change', onTerritoryChange);
-  document.getElementById('groupSel').addEventListener('change', ()=>{
-    updateFilter();
-    // Auto-switch to Insights tab when a group is selected
-    const groupSel = document.getElementById('groupSel');
-    if (groupSel.selectedOptions.length > 0) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      document.querySelector('[data-tab="insights"]').classList.add('active');
-      document.getElementById('insights-content').classList.add('active');
-    }
-  });
-  document.querySelectorAll('.statusChk').forEach(cb=>cb.addEventListener('change', ()=>{
-    updateFilter();
-  }));
+  document.getElementById('groupSel').addEventListener('change', updateFilter);
+  document.querySelectorAll('.statusChk').forEach(cb=>cb.addEventListener('change', updateFilter));
+  document.getElementById('showStaffChk').addEventListener('change', updateFilter);
   document.getElementById('btnSearch').addEventListener('click', updateFilter);
   document.getElementById('btnClearSearch').addEventListener('click',()=>{document.getElementById('searchBox').value=''; updateFilter()});
   document.getElementById('searchBox').addEventListener('keydown',e=>{if(e.key==='Enter') updateFilter()});
@@ -1083,11 +1328,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     const s=document.getElementById('groupSel'); 
     for(const o of s.options) o.selected=true; 
     updateFilter();
-    // Auto-switch to Insights tab
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelector('[data-tab="insights"]').classList.add('active');
-    document.getElementById('insights-content').classList.add('active');
   });
   
   document.getElementById('groupClear').addEventListener('click',()=>{
@@ -1110,7 +1350,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     download(`schools-filtered-${d}.csv`, csv);
   });
 
-  // Tab switching
+  // Tab switching (only for 2 tabs now)
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -1118,6 +1358,15 @@ document.addEventListener('DOMContentLoaded',()=>{
       tab.classList.add('active');
       document.getElementById(`${tab.dataset.tab}-content`).classList.add('active');
     });
+  });
+
+  // Insights panel collapse
+  document.getElementById('btnCollapseInsights').addEventListener('click', () => {
+    const panel = document.getElementById('insightsPanel');
+    const btn = document.getElementById('btnCollapseInsights');
+    const isCollapsed = panel.classList.contains('is-collapsed');
+    panel.classList.toggle('is-collapsed');
+    btn.textContent = isCollapsed ? 'Collapse' : 'Expand';
   });
 
   // AI Panel controls
@@ -1189,14 +1438,9 @@ document.addEventListener('DOMContentLoaded',()=>{
       return;
     }
     
-    // Switch to insights tab
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.querySelector('[data-tab="insights"]').classList.add('active');
-    document.getElementById('insights-content').classList.add('active');
-    
+    // Just update insights and highlight the panel
     updateTerritoryInsights();
-    showToast('Analysis complete');
+    showToast('Analysis complete - check Live Insights panel');
   });
 
   document.getElementById('btnFindOptimal').addEventListener('click', async () => {
@@ -1215,7 +1459,9 @@ document.addEventListener('DOMContentLoaded',()=>{
       return baseVisiblePredicate(m._rec);
     });
     const noneCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'none').length;
-    const growthPotential = visible.length > 0 ? Math.round(noneCount / visible.length * 100) : 0;
+    const inProgressCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'inprogress').length;
+    const recentCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'recent').length;
+    const growthPotential = visible.length > 0 ? Math.round((noneCount + recentCount) / visible.length * 100) : 0;
     
     // Build context
     const groupSel = document.getElementById('groupSel');
@@ -1228,7 +1474,23 @@ document.addEventListener('DOMContentLoaded',()=>{
       context += ` in ${currentTerritory.name}`;
     }
     
-    const prediction = `📈 Growth Prediction${context}:\n\nCurrent view has ${growthPotential}% growth potential with ${noneCount} uncontacted schools.\n\nProjected outcomes:\n• Conservative: Convert 20% = ${Math.round(noneCount * 0.2)} new clients\n• Moderate: Convert 35% = ${Math.round(noneCount * 0.35)} new clients\n• Aggressive: Convert 50% = ${Math.round(noneCount * 0.5)} new clients\n\nRecommended focus: ${growthPotential > 40 ? 'High priority area' : growthPotential > 20 ? 'Moderate opportunity' : 'Maintenance mode'}`;
+    const prediction = `📈 Growth Prediction${context}:
+
+Current Pipeline:
+• ${inProgressCount} schools in progress (likely to close)
+• ${recentCount} recent contacts (warm leads)
+• ${noneCount} uncontacted schools (cold prospects)
+
+Growth potential: ${growthPotential}% (${noneCount + recentCount} convertible schools)
+
+Projected outcomes:
+• Short-term (In Progress → Current): ${Math.round(inProgressCount * 0.7)} likely conversions
+• Medium-term (Recent → Current): ${Math.round(recentCount * 0.4)} potential conversions
+• Long-term (None → Current): ${Math.round(noneCount * 0.2)} new acquisitions
+
+Total projected growth: ${Math.round(inProgressCount * 0.7 + recentCount * 0.4 + noneCount * 0.2)} new clients
+
+Recommended focus: ${inProgressCount > 5 ? 'Close in-progress deals first' : growthPotential > 40 ? 'High growth territory - increase outreach' : growthPotential > 20 ? 'Moderate opportunity - nurture warm leads' : 'Maintenance mode - focus on retention'}`;
     
     // Show in AI chat
     document.getElementById('aiPanel').classList.add('active');
