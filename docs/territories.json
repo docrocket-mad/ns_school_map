@@ -1,12 +1,36 @@
 [
   {
-    "id": "maritimes",
-    "name": "Mad Science Maritimes (NS, NB, PE)",
-    "bbox": [-69.20, 43.00, -57.90, 48.30],
+    "id": "maritimesNS",
+    "name": "Mad Science Nova Scotia",
+    "bbox": [-66.5, 43.3, -59.0, 47.2],
     "geometry": {
       "type": "Polygon",
       "coordinates": [[
-        [-69.20,43.00],[-69.20,48.30],[-57.90,48.30],[-57.90,43.00],[-69.20,43.00]
+        [-66.5,43.3],[-66.5,47.2],[-59.0,47.2],[-59.0,43.3],[-66.5,43.3]
+      ]]
+    },
+    "color": "#1976d2"
+  },
+  {
+    "id": "maritimesNB",
+    "name": "Mad Science New Brunswick",
+    "bbox": [-69.2, 44.5, -63.7, 48.3],
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [[
+        [-69.2,44.5],[-69.2,48.3],[-63.7,48.3],[-63.7,44.5],[-69.2,44.5]
+      ]]
+    },
+    "color": "#1976d2"
+  },
+  {
+    "id": "maritimesPE",
+    "name": "Mad Science Prince Edward Island",
+    "bbox": [-64.5, 45.8, -62.0, 47.2],
+    "geometry": {
+      "type": "Polygon",
+      "coordinates": [[
+        [-64.5,45.8],[-64.5,47.2],[-62.0,47.2],[-62.0,45.8],[-64.5,45.8]
       ]]
     },
     "color": "#1976d2"
