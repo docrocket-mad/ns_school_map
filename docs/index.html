@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>NS Schools Map with AI (Live v14.1)</title>
+<title>Territory Mapper Pro (v14.2)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   html, body, #map { height:100%; margin:0; }
@@ -264,8 +264,8 @@
 <div id="panelHeader">
   <div class="title">
     <img src="madscience-logo.png" alt="Mad Science" style="height:28px; margin-right:8px;">
-    <span>Filters & AI Tools</span>
-    <span class="badge">AI v14.1</span>
+    <span>Control Panel</span>
+    <span class="badge">v14.2</span>
   </div>
   <button id="btnCollapsePanel" title="Collapse/Expand">Collapse</button>
 </div>
@@ -296,7 +296,7 @@
 
       <div style="margin-bottom:8px;">
         <label style="font-weight:600;">
-          <input type="checkbox" id="showStaffChk" checked> Show Mad Scientists
+          <input type="checkbox" id="showStaffChk" checked> Show Staff Locations
         </label>
       </div>
 
@@ -312,7 +312,7 @@
 
       <div style="margin-bottom:8px;">
         <div style="font-weight:600; margin-bottom:4px;">Search</div>
-        <input id="searchBox" type="text" placeholder="School or address..." style="width:100%; padding:6px;">
+        <input id="searchBox" type="text" placeholder="Name, address, or notes..." style="width:100%; padding:6px;">
         <div class="row" style="margin-top:6px;">
           <button id="btnSearch" type="button">Apply</button>
           <button id="btnClearSearch" type="button">Clear</button>
@@ -321,7 +321,7 @@
       </div>
 
       <div id="listContainer" style="display:none; margin:10px 0; border:1px solid #ddd; border-radius:8px; max-height:220px; overflow:auto;">
-        <div style="padding:6px 8px; font-weight:600; border-bottom:1px solid #eee;">Schools</div>
+        <div style="padding:6px 8px; font-weight:600; border-bottom:1px solid #eee;">Locations</div>
         <div id="schoolList" style="max-height:180px; overflow:auto;"></div>
       </div>
 
@@ -337,25 +337,27 @@
     <div id="ai-tools-content" class="tab-content">
       <div style="margin-bottom:12px;">
         <div style="font-weight:600; margin-bottom:6px;">🤖 AI Assistant</div>
-        <button id="btnOpenAI" type="button" style="width:100%;">Open AI Chat Assistant</button>
+        <button id="btnOpenAI" type="button" style="width:100%;">Open Chat Assistant</button>
+        <div style="font-size:11px; color:#666; margin-top:4px;">Ask questions about your data in natural language</div>
       </div>
 
       <div style="margin-bottom:12px;">
-        <div style="font-weight:600; margin-bottom:6px;">🔍 Smart Search</div>
-        <input id="aiSearchBox" type="text" placeholder="Ask about schools in natural language..." style="width:100%; padding:6px; margin-bottom:6px;">
-        <button id="btnAISearch" type="button" style="width:100%;">AI Search</button>
+        <div style="font-weight:600; margin-bottom:6px;">🔍 Advanced Search</div>
+        <input id="aiSearchBox" type="text" placeholder="Try: 'uncontacted', 'with notes', 'in progress'..." style="width:100%; padding:6px; margin-bottom:6px;">
+        <button id="btnAISearch" type="button" style="width:100%;">Search with Keywords</button>
+        <div style="font-size:11px; color:#666; margin-top:4px;">Searches status, notes, and all fields with smart matching</div>
       </div>
 
       <div style="margin-bottom:12px;">
         <div style="font-weight:600; margin-bottom:6px;">📊 Quick Analysis</div>
         <button id="btnAnalyzeTerritory" type="button" style="width:100%; margin-bottom:4px;">Analyze Current View</button>
-        <button id="btnFindOptimal" type="button" style="width:100%; margin-bottom:4px;">Find Optimal Routes</button>
-        <button id="btnPredictGrowth" type="button" style="width:100%;">Predict Growth Areas</button>
+        <button id="btnPredictGrowth" type="button" style="width:100%;">Predict Growth Potential</button>
       </div>
 
       <div style="margin-bottom:12px;">
-        <div style="font-weight:600; margin-bottom:6px;">📈 Data Insights</div>
-        <button id="btnGenerateReport" type="button" style="width:100%;">Generate AI Report</button>
+        <div style="font-weight:600; margin-bottom:6px;">📈 Reports</div>
+        <button id="btnGenerateReport" type="button" style="width:100%;">Generate Analysis Report</button>
+        <div style="font-size:11px; color:#666; margin-top:4px;">Creates a downloadable report with insights</div>
       </div>
     </div>
   </div>
@@ -417,11 +419,11 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ===== CONFIG — SET THESE ===== */
-const SHEETS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CMl0KcbjCZDM5d1TlX8BaAqT8A2uBd5eiHUEwVmYFNDMhM6G51Ele-lQ/exec";  // GET CSV
-const WRITE_ENDPOINT  = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CMl0KcbjCZDM5d1TlX8BaAqT8A2uBd5eiHUEwVmYFNDMhM6G51Ele-lQ/exec";  // POST update (status only)
-const WRITE_SECRET    = "123456pooydiapers";
-const SHEET_TAB_NAME  = "Sheet1";
-const TERRITORIES_URL = "territories.json";
+const SHEETS_ENDPOINT = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CMl0KcbjCZDM5d1TlX8BaAqT8A2uBd5eiHUEwVmYFNDMhM6G51Ele-lQ/exec";  // GET CSV data
+const WRITE_ENDPOINT  = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CMl0KcbjCZDM5d1TlX8BaAqT8A2uBd5eiHUEwVmYFNDMhM6G51Ele-lQ/exec";  // POST updates
+const WRITE_SECRET    = "123456pooydiapers";  // Authentication key
+const SHEET_TAB_NAME  = "Sheet1";  // Google Sheets tab name
+const TERRITORIES_URL = "territories.json";  // Territory boundaries file
 const COLOR = { none:"#808080", recent:"#1f77b4", current:"#2ca02c", inprogress:"#ff7f0e", staff:"#800080" };
 
 /* ===== Map ===== */
@@ -535,6 +537,8 @@ function onTerritoryChange(){
     territoryLayer=L.geoJSON(currentTerritory.geometry,{style:{color:currentTerritory.color||'#555',weight:1,opacity:0.8,dashArray:'4,6',fillColor:currentTerritory.color||'#555',fillOpacity:0.08},interactive:false,className:'territory-boundary'}).addTo(map);
     const b=currentTerritory.bbox; if(b){const[w,s,e,n]=b; map.fitBounds([[s,w],[n,e]])}
   }
+  // Rebuild group list for new territory
+  buildGroupList();
   requestAnimationFrame(applyFilters);
   updateTerritoryInsights(); // AI feature
 }
@@ -593,7 +597,7 @@ function formatPhone(p){const raw=String(p||'').trim(); if(!raw) return ''; cons
 function formatEmail(e){const raw=String(e||'').trim(); if(!raw) return ''; return `<a href="mailto:${raw}">${raw}</a>`}
 function escapeHtml(text){const div=document.createElement('div');div.textContent=text;return div.innerHTML;}
 function buildPopupHTML(rec){
-  const name=rec.School||rec.SchoolName||rec.Name||'School';
+  const name=rec.School||rec.SchoolName||rec.Name||rec.LocationName||rec.Location||'Location';
   const addr=rec.Address||rec.address||'';
   const phone=rec.Phone||rec.phone||rec.Telephone||rec['Phone Number']||rec['Contact Phone']||'';
   const email=rec.Email||rec.email||rec['Email Address']||rec['Contact Email']||'';
@@ -618,15 +622,15 @@ function buildPopupHTML(rec){
         <span style="font-weight:600; font-size:12px;">Notes:</span>
         <button data-role="add-timestamp" style="font-size:11px; padding:2px 6px; border-radius:4px;" type="button">+ Add ${today}</button>
       </div>
-      <textarea data-role="notes-input" style="width:100%; min-height:50px; padding:4px; font-size:12px; border:1px solid #ddd; border-radius:4px; resize:vertical;" placeholder="Add notes (e.g., Spoke with principal, follow up next week)">${escapeHtml(notes)}</textarea>
+      <textarea data-role="notes-input" style="width:100%; min-height:50px; padding:4px; font-size:12px; border:1px solid #ddd; border-radius:4px; resize:vertical;" placeholder="Add notes (e.g., Spoke with contact, follow up next week)">${escapeHtml(notes)}</textarea>
       <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#666; margin-top:2px;">
         <span>Tip: Press Ctrl+Enter to save</span>
         <span data-role="char-count">${notes.length} chars</span>
       </div>
     </div>`;
-  const canUpdateKey = !!(rec.Id || ((rec.School||rec.SchoolName||rec.Name) && rec.Address));
+  const canUpdateKey = !!(rec.Id || ((rec.School||rec.SchoolName||rec.Name||rec.LocationName||rec.Location) && rec.Address));
   const btn = `<button data-role="save-changes" ${canUpdateKey?'':'disabled'} style="width:100%; margin-top:6px;">${canUpdateKey?'Save All Changes':'Save (no key)'}</button>`;
-  const tip = canUpdateKey ? '' : `<div class="muted" style="margin-top:4px;">Add an <strong>Id</strong> column or ensure School & Address exist to enable updates.</div>`;
+  const tip = canUpdateKey ? '' : `<div class="muted" style="margin-top:4px;">Add an <strong>Id</strong> column or ensure Name & Address exist to enable updates.</div>`;
   return `<div><strong>${escapeHtml(name)}</strong><br>${escapeHtml(addr)}${groupHTML}${phoneHTML}${emailHTML}</div>
           <div class="popup-row">Status: ${select}</div>
           ${notesField}
@@ -715,7 +719,10 @@ function addCircleFor(rec){
         m.setStyle({ color: getStatusColor(rec), fillColor: getStatusColor(rec) });
         
         const keyField = rec.Id ? 'Id' : 'School+Address';
-        const keyValue = rec.Id ? String(rec.Id) : JSON.stringify({ School: (rec.School||rec.SchoolName||rec.Name||''), Address: (rec.Address||'') });
+        const keyValue = rec.Id ? String(rec.Id) : JSON.stringify({ 
+          School: (rec.School||rec.SchoolName||rec.Name||rec.LocationName||rec.Location||''), 
+          Address: (rec.Address||'') 
+        });
         
         // Build patch with only changed fields
         const patch = {};
@@ -771,19 +778,90 @@ function addCircleFor(rec){
   return m;
 }
 
-/* Groups/List */
+/* Groups/List - Territory-Aware */
 function buildGroupList(){
-  const sel=document.getElementById('groupSel'); const set=new Set();
-  DATA.forEach(r=>{const g=(r.Group||r.group||'').trim(); if(g) set.add(g)});
+  const sel=document.getElementById('groupSel'); 
+  
+  // If no territory selected, show all groups
+  if (!currentTerritory) {
+    const set=new Set();
+    DATA.forEach(r=>{const g=(r.Group||r.group||'').trim(); if(g) set.add(g)});
+    GROUPS=Array.from(set).sort();
+    sel.innerHTML=''; 
+    GROUPS.forEach(g=>{const o=document.createElement('option'); o.value=g; o.textContent=g; sel.appendChild(o)});
+    return;
+  }
+  
+  // Filter groups based on current territory
+  const set=new Set();
+  DATA.forEach(r=>{
+    // Check if school is in current territory
+    if (!isValidLatLon(r.lat,r.lon)) return;
+    
+    // Use TerritoryId if available, otherwise check geometry
+    let inTerritory = false;
+    if (r.TerritoryId || r.territoryId || r.territory_id) {
+      inTerritory = (r.TerritoryId || r.territoryId || r.territory_id) === currentTerritory.id;
+    } else {
+      inTerritory = pointInGeometry(r.lon, r.lat, currentTerritory.geometry);
+    }
+    
+    if (inTerritory) {
+      const g=(r.Group||r.group||'').trim(); 
+      if(g) set.add(g);
+    }
+  });
+  
   GROUPS=Array.from(set).sort();
-  sel.innerHTML=''; GROUPS.forEach(g=>{const o=document.createElement('option'); o.value=g; o.textContent=g; sel.appendChild(o)});
+  sel.innerHTML=''; 
+  
+  if (GROUPS.length === 0) {
+    const o=document.createElement('option'); 
+    o.value=''; 
+    o.textContent='-- No groups in this territory --';
+    o.disabled = true;
+    sel.appendChild(o);
+  } else {
+    GROUPS.forEach(g=>{
+      const o=document.createElement('option'); 
+      o.value=g; 
+      o.textContent=g; 
+      sel.appendChild(o);
+    });
+  }
+  
+  // Clear any selected groups that don't exist in new territory
+  for(const o of sel.options) {
+    if(o.selected && !GROUPS.includes(o.value)) {
+      o.selected = false;
+    }
+  }
 }
 function updateList(){
   const list=document.getElementById('schoolList'); list.innerHTML='';
   const items=[];
-  markers.forEach(m=>{const r=m._rec; if(visiblePredicate(r)) items.push({name:r.School||r.SchoolName||r.Name||'School',addr:r.Address||'',lat:r.lat,lon:r.lon,m})});
+  markers.forEach(m=>{
+    const r=m._rec; 
+    const st = normalizeStatus(r.Status || r.status);
+    // Only show in list if visible and not staff (unless staff toggle is on)
+    if(visiblePredicate(r)) {
+      items.push({
+        name:r.School||r.SchoolName||r.Name||r.LocationName||r.Location||'Location',
+        addr:r.Address||'',
+        lat:r.lat,
+        lon:r.lon,
+        m
+      });
+    }
+  });
   items.sort((a,b)=>a.name.localeCompare(b.name));
-  items.forEach(it=>{const d=document.createElement('div'); d.className='list-item'; d.innerHTML=`<strong>${it.name}</strong><br><span class="muted">${it.addr}</span>`; d.addEventListener('click',()=>{map.setView([it.lat,it.lon],14); it.m.fire('click')}); list.appendChild(d)});
+  items.forEach(it=>{
+    const d=document.createElement('div'); 
+    d.className='list-item'; 
+    d.innerHTML=`<strong>${it.name}</strong><br><span class="muted">${it.addr}</span>`; 
+    d.addEventListener('click',()=>{map.setView([it.lat,it.lon],14); it.m.fire('click')}); 
+    list.appendChild(d);
+  });
 }
 
 /* Downloads */
@@ -844,7 +922,7 @@ class AIAssistant {
   }
 
   updateContext() {
-    this.context.totalSchools = DATA.length;
+    this.context.totalSchools = DATA.filter(r => normalizeStatus(r.Status || r.status) !== 'staff').length;
     this.context.territories = TERRITORIES.map(t => t.name);
     this.context.currentTerritory = currentTerritory?.name;
     
@@ -852,16 +930,18 @@ class AIAssistant {
     const groupSel = document.getElementById('groupSel');
     this.context.selectedGroups = Array.from(groupSel.selectedOptions).map(o => o.value);
     
-    // Calculate status distribution for visible schools
-    const dist = {none:0, recent:0, inprogress:0, current:0, staff:0};
+    // Calculate status distribution for visible schools (excluding staff)
+    const dist = {none:0, recent:0, inprogress:0, current:0};
     const visible = markers.filter(m => {
+      const st = normalizeStatus(m._rec.Status || m._rec.status);
+      if (st === 'staff') return false; // Exclude staff
       if (currentTerritory) return territoryVisible(m._rec);
       return baseVisiblePredicate(m._rec);
     });
     
     visible.forEach(m => {
       const st = normalizeStatus(m._rec.Status || m._rec.status);
-      dist[st]++;
+      if (st !== 'staff') dist[st]++;
     });
     this.context.statusDistribution = dist;
     this.context.visibleSchools = visible.length;
@@ -879,13 +959,13 @@ class AIAssistant {
     // Simple pattern matching for common queries
     const lowerQuery = query.toLowerCase();
     
-    if (lowerQuery.includes('how many schools')) {
-      return `There are ${this.context.totalSchools} schools total. Currently showing ${this.context.visibleSchools} schools in ${contextStr}.`;
+    if (lowerQuery.includes('how many')) {
+      return `There are ${this.context.totalSchools} locations total (excluding staff). Currently showing ${this.context.visibleSchools} locations in ${contextStr}.`;
     }
     
     if (lowerQuery.includes('status') || lowerQuery.includes('breakdown')) {
       const dist = this.context.statusDistribution;
-      return `Status breakdown for ${contextStr}:\n• None: ${dist.none}\n• Recent: ${dist.recent}\n• In Progress: ${dist.inprogress}\n• Current: ${dist.current}\n• Staff: ${dist.staff}`;
+      return `Status breakdown for ${contextStr}:\n• None: ${dist.none}\n• Recent: ${dist.recent}\n• In Progress: ${dist.inprogress}\n• Current: ${dist.current}\n(Staff excluded from counts)`;
     }
     
     if (lowerQuery.includes('group') && this.context.selectedGroups.length > 0) {
@@ -914,18 +994,16 @@ class AIAssistant {
       return this.generateRecommendation();
     }
     
-    if (lowerQuery.includes('route') || lowerQuery.includes('optimal')) {
-      return this.suggestRoute();
-    }
-    
     // Default response
-    return `I can help you with:\n• School counts and statistics\n• Territory analysis\n• Group-specific insights\n• Status breakdowns\n• Route optimization\n• Strategic recommendations\n\nCurrent context: ${contextStr}\n\nTip: Click any school marker to update status and add/edit notes directly!\n\nWhat would you like to know?`;
+    return `I can help you with:\n• Location counts and statistics\n• Territory analysis\n• Group-specific insights\n• Status breakdowns\n• Strategic recommendations\n\nCurrent context: ${contextStr}\n\nTip: Click any location marker to update status and add/edit notes directly!\n\nWhat would you like to know?`;
   }
 
   generateRecommendation() {
     const visible = markers.filter(m => {
+      const st = normalizeStatus(m._rec.Status || m._rec.status);
+      if (st === 'staff') return false; // Exclude staff
       if (currentTerritory) return territoryVisible(m._rec);
-      return baseVisiblePredicate(m._rec);
+      return baseVisiblePredicate(m._rec) && st !== 'staff';
     });
     const noneCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'none').length;
     const inProgressCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'inprogress').length;
@@ -940,89 +1018,23 @@ class AIAssistant {
     }
     
     if (visible.length === 0) {
-      return `📊 No schools found${context}. Try adjusting your filters or selecting a different territory/group.`;
+      return `📊 No locations found${context}. Try adjusting your filters or selecting a different territory/group.`;
     }
     
     if (inProgressCount > visible.length * 0.2) {
-      return `📊 Recommendation: Focus on closing deals${context}. You have ${inProgressCount} schools (${Math.round(inProgressCount/visible.length*100)}%) in progress. Schedule follow-ups to convert them to current clients.`;
+      return `📊 Recommendation: Focus on closing deals${context}. You have ${inProgressCount} locations (${Math.round(inProgressCount/visible.length*100)}%) in progress. Schedule follow-ups to convert them to current clients.`;
     }
     
     if (noneCount > visible.length * 0.5) {
-      return `📊 Recommendation: Focus on converting "None" status schools${context}. You have ${noneCount} uncontacted schools (${Math.round(noneCount/visible.length*100)}%) in the current view. Consider prioritizing clusters of nearby schools for efficient outreach.`;
+      return `📊 Recommendation: Focus on converting uncontacted locations${context}. You have ${noneCount} uncontacted locations (${Math.round(noneCount/visible.length*100)}%) in the current view. Consider prioritizing clusters for efficient outreach.`;
     }
     
     const recentCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'recent').length;
     if (recentCount > visible.length * 0.3) {
-      return `📊 Recommendation: Move recent contacts to "In Progress"${context}. You have ${recentCount} schools (${Math.round(recentCount/visible.length*100)}%) that were recently contacted. Follow up to advance these opportunities.`;
+      return `📊 Recommendation: Move recent contacts to "In Progress"${context}. You have ${recentCount} locations (${Math.round(recentCount/visible.length*100)}%) that were recently contacted. Follow up to advance these opportunities.`;
     }
     
-    return `📊 Recommendation: Your coverage${context} looks good! Consider expanding to adjacent areas or deepening relationships with current schools.`;
-  }
-
-  suggestRoute() {
-    const visible = markers.filter(m => {
-      const isVisible = currentTerritory ? territoryVisible(m._rec) : baseVisiblePredicate(m._rec);
-      return isVisible && normalizeStatus(m._rec.Status) === 'none';
-    });
-    
-    // Build context string
-    let context = '';
-    if (this.context.selectedGroups.length > 0) {
-      context = ` for ${this.context.selectedGroups.join(', ')}`;
-    }
-    if (this.context.currentTerritory) {
-      context += ` in ${this.context.currentTerritory}`;
-    }
-    
-    if (visible.length === 0) {
-      return `✅ No uncontacted schools${context}. Great coverage!`;
-    }
-    
-    // Simple clustering suggestion
-    const clusters = this.findClusters(visible.map(m => m._rec));
-    if (clusters.length > 0) {
-      return `🗺️ Route suggestion${context}: I found ${clusters.length} clusters of uncontacted schools. The largest cluster has ${clusters[0].length} schools near ${clusters[0][0].Address || 'the area'}. Focus on this area for efficient visits.`;
-    }
-    
-    return `🗺️ Found ${visible.length} uncontacted schools${context}. They're spread out, so consider planning multiple trip days.`;
-  }
-
-  findClusters(schools) {
-    // Simple distance-based clustering
-    const clusters = [];
-    const used = new Set();
-    
-    schools.forEach((school, i) => {
-      if (used.has(i)) return;
-      
-      const cluster = [school];
-      used.add(i);
-      
-      schools.forEach((other, j) => {
-        if (i === j || used.has(j)) return;
-        const dist = this.getDistance(school.lat, school.lon, other.lat, other.lon);
-        if (dist < 5) { // Within 5km
-          cluster.push(other);
-          used.add(j);
-        }
-      });
-      
-      if (cluster.length > 2) clusters.push(cluster);
-    });
-    
-    return clusters.sort((a,b) => b.length - a.length);
-  }
-
-  getDistance(lat1, lon1, lat2, lon2) {
-    // Haversine formula for distance in km
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
+    return `📊 Recommendation: Your coverage${context} looks good! Consider expanding to adjacent areas or deepening relationships with current clients.`;
   }
 }
 
@@ -1035,13 +1047,13 @@ function performAISearch(query) {
   
   DATA.forEach(rec => {
     let score = 0;
-    const schoolName = (rec.School || rec.SchoolName || rec.Name || '').toLowerCase();
+    const name = (rec.School || rec.SchoolName || rec.Name || rec.LocationName || rec.Location || '').toLowerCase();
     const address = (rec.Address || '').toLowerCase();
     const group = (rec.Group || '').toLowerCase();
     const notes = (rec.Notes || '').toLowerCase();
     
     // Check for exact matches
-    if (schoolName.includes(lowerQuery)) score += 10;
+    if (name.includes(lowerQuery)) score += 10;
     if (address.includes(lowerQuery)) score += 5;
     if (group.includes(lowerQuery)) score += 3;
     if (notes.includes(lowerQuery)) score += 4;
@@ -1050,7 +1062,7 @@ function performAISearch(query) {
     const words = lowerQuery.split(' ');
     words.forEach(word => {
       if (word.length > 2) {
-        if (schoolName.includes(word)) score += 2;
+        if (name.includes(word)) score += 2;
         if (address.includes(word)) score += 1;
         if (notes.includes(word)) score += 1;
       }
@@ -1101,29 +1113,45 @@ function updateTerritoryInsights() {
   }
   
   // Filter markers based on current filters (territory + groups + status)
+  // EXCLUDE STAFF from metrics
   const visible = markers.filter(m => {
+    const st = normalizeStatus(m._rec.Status || m._rec.status);
+    if (st === 'staff') return false; // Exclude staff from insights
+    
     // Use the full filter predicate to respect all current filters
     if (currentTerritory) {
       return territoryVisible(m._rec);
     } else {
-      // If no territory selected but groups are selected, show group data
-      return baseVisiblePredicate(m._rec);
+      return baseVisiblePredicate(m._rec) && st !== 'staff';
     }
   });
   
-  const statusCounts = {none:0, recent:0, inprogress:0, current:0, staff:0};
+  // Also count staff separately
+  const staffCount = markers.filter(m => {
+    const st = normalizeStatus(m._rec.Status || m._rec.status);
+    if (st !== 'staff') return false;
+    if (currentTerritory) {
+      return territoryVisible(m._rec);
+    } else {
+      return baseVisiblePredicate(m._rec);
+    }
+  }).length;
+  
+  const statusCounts = {none:0, recent:0, inprogress:0, current:0};
   const groupCounts = {};
   
   visible.forEach(m => {
     const st = normalizeStatus(m._rec.Status || m._rec.status);
-    statusCounts[st]++;
+    if (st !== 'staff') { // Double-check staff exclusion
+      statusCounts[st]++;
+    }
     
     const group = (m._rec.Group || m._rec.group || 'No Group').trim();
     groupCounts[group] = (groupCounts[group] || 0) + 1;
   });
   
-  const total = visible.length;
-  const coverage = total > 0 ? Math.round((statusCounts.current + statusCounts.staff) / total * 100) : 0;
+  const total = visible.length; // Already excludes staff
+  const coverage = total > 0 ? Math.round(statusCounts.current / total * 100) : 0;
   const inProgressRate = total > 0 ? Math.round(statusCounts.inprogress / total * 100) : 0;
   
   // Build context label
@@ -1145,15 +1173,15 @@ function updateTerritoryInsights() {
   // Update stats display
   document.getElementById('territoryStats').innerHTML = `
     ${contextLabel}
-    <div class="ai-stat"><span>Total Schools:</span><strong>${total}</strong></div>
-    <div class="ai-stat"><span>Coverage:</span><strong>${coverage}%</strong></div>
-    <div class="ai-stat"><span>In Progress:</span><strong>${inProgressRate}%</strong></div>
+    <div class="ai-stat"><span>Total Locations (excl. staff):</span><strong>${total}</strong></div>
+    <div class="ai-stat"><span>Coverage Rate:</span><strong>${coverage}%</strong></div>
+    <div class="ai-stat"><span>In Progress Rate:</span><strong>${inProgressRate}%</strong></div>
     <div style="margin-top:8px; padding-top:8px; border-top:1px solid #e0e0e0;">
       <div class="ai-stat"><span>Uncontacted:</span><strong>${statusCounts.none}</strong></div>
       <div class="ai-stat"><span>Recent:</span><strong>${statusCounts.recent}</strong></div>
       <div class="ai-stat"><span>In Progress:</span><strong>${statusCounts.inprogress}</strong></div>
-      <div class="ai-stat"><span>Current:</span><strong>${statusCounts.current}</strong></div>
-      <div class="ai-stat"><span>Staff:</span><strong>${statusCounts.staff}</strong></div>
+      <div class="ai-stat"><span>Current Clients:</span><strong>${statusCounts.current}</strong></div>
+      <div class="ai-stat" style="opacity:0.6;"><span>Staff (excluded):</span><strong>${staffCount}</strong></div>
     </div>
     ${hasGroupFilter && Object.keys(groupCounts).length > 0 ? 
       `<div style="margin-top:8px; padding-top:8px; border-top:1px solid #e0e0e0;">
@@ -1164,14 +1192,15 @@ function updateTerritoryInsights() {
       </div>` : ''}
   `;
   
-  // Generate AI recommendations based on context
+  // Generate AI recommendations based on context (excluding staff)
   let recommendations = [];
   
   if (total === 0) {
-    recommendations.push(`No schools found with current filters. Try adjusting your selection.`);
+    recommendations.push(`No non-staff schools found. Try adjusting your filters.`);
   } else {
     if (statusCounts.inprogress > 0) {
-      recommendations.push(`${statusCounts.inprogress} schools in progress - follow up to close deals`);
+      const pct = Math.round(statusCounts.inprogress / total * 100);
+      recommendations.push(`${statusCounts.inprogress} schools in progress (${pct}%) - focus on closing`);
     }
     if (statusCounts.none > total * 0.4) {
       recommendations.push(`High opportunity: ${statusCounts.none} uncontacted schools${hasGroupFilter ? ' in selected group(s)' : ''}`);
@@ -1209,34 +1238,43 @@ function updateTerritoryInsights() {
 // Generate AI Report
 async function generateAIReport() {
   const report = [];
-  report.push(`📊 **School Network Analysis Report**`);
+  report.push(`📊 **Territory Analysis Report**`);
   report.push(`Generated: ${new Date().toLocaleDateString()}\n`);
   
-  // Overall statistics
+  // Overall statistics (excluding staff)
+  const nonStaffData = DATA.filter(r => normalizeStatus(r.Status || r.status) !== 'staff');
+  const staffData = DATA.filter(r => normalizeStatus(r.Status || r.status) === 'staff');
+  
   report.push(`**Overall Statistics:**`);
-  report.push(`• Total Schools: ${DATA.length}`);
+  report.push(`• Total Locations: ${nonStaffData.length} (+ ${staffData.length} staff excluded)`);
   report.push(`• Active Territories: ${TERRITORIES.length}`);
   
   // Count schools with notes
-  const withNotes = DATA.filter(r => (r.Notes || r.notes || '').trim().length > 0).length;
-  report.push(`• Schools with notes: ${withNotes} (${Math.round(withNotes/DATA.length*100)}%)`);
+  const withNotes = nonStaffData.filter(r => (r.Notes || r.notes || '').trim().length > 0).length;
+  report.push(`• Locations with notes: ${withNotes} (${Math.round(withNotes/nonStaffData.length*100)}%)`);
   
-  // Status breakdown
-  const statusDist = {none:0, recent:0, inprogress:0, current:0, staff:0};
-  DATA.forEach(r => statusDist[normalizeStatus(r.Status || r.status)]++);
+  // Status breakdown (excluding staff)
+  const statusDist = {none:0, recent:0, inprogress:0, current:0};
+  nonStaffData.forEach(r => {
+    const st = normalizeStatus(r.Status || r.status);
+    if (st !== 'staff') statusDist[st]++;
+  });
   
-  report.push(`\n**Status Distribution:**`);
-  report.push(`• Uncontacted: ${statusDist.none} (${Math.round(statusDist.none/DATA.length*100)}%)`);
-  report.push(`• Recent: ${statusDist.recent} (${Math.round(statusDist.recent/DATA.length*100)}%)`);
-  report.push(`• In Progress: ${statusDist.inprogress} (${Math.round(statusDist.inprogress/DATA.length*100)}%)`);
-  report.push(`• Current: ${statusDist.current} (${Math.round(statusDist.current/DATA.length*100)}%)`);
-  report.push(`• Staff: ${statusDist.staff} (${Math.round(statusDist.staff/DATA.length*100)}%)`);
+  report.push(`\n**Status Distribution (excluding staff):**`);
+  report.push(`• Uncontacted: ${statusDist.none} (${Math.round(statusDist.none/nonStaffData.length*100)}%)`);
+  report.push(`• Recent: ${statusDist.recent} (${Math.round(statusDist.recent/nonStaffData.length*100)}%)`);
+  report.push(`• In Progress: ${statusDist.inprogress} (${Math.round(statusDist.inprogress/nonStaffData.length*100)}%)`);
+  report.push(`• Current Clients: ${statusDist.current} (${Math.round(statusDist.current/nonStaffData.length*100)}%)`);
+  
+  // Coverage rate
+  const coverageRate = Math.round(statusDist.current / nonStaffData.length * 100);
+  report.push(`\n**Coverage Rate: ${coverageRate}%**`);
   
   // Territory analysis
-  report.push(`\n**Top Territories by School Count:**`);
+  report.push(`\n**Top Territories by Location Count:**`);
   const territoryData = [];
   TERRITORIES.forEach(t => {
-    const count = DATA.filter(r => {
+    const count = nonStaffData.filter(r => {
       if (!Number.isFinite(r.lat) || !Number.isFinite(r.lon)) return false;
       return pointInGeometry(r.lon, r.lat, t.geometry);
     }).length;
@@ -1244,22 +1282,22 @@ async function generateAIReport() {
   });
   territoryData.sort((a,b) => b.count - a.count);
   territoryData.slice(0,5).forEach(t => {
-    report.push(`• ${t.name}: ${t.count} schools`);
+    report.push(`• ${t.name}: ${t.count} locations`);
   });
   
   // Recommendations
   report.push(`\n**Strategic Recommendations:**`);
-  if (statusDist.inprogress > DATA.length * 0.1) {
-    report.push(`• Strong pipeline: ${statusDist.inprogress} schools in progress - focus on closing`);
+  if (statusDist.inprogress > nonStaffData.length * 0.1) {
+    report.push(`• Strong pipeline: ${statusDist.inprogress} locations in progress - focus on closing`);
   }
-  if (statusDist.none > DATA.length * 0.3) {
-    report.push(`• High growth opportunity with ${statusDist.none} uncontacted schools`);
+  if (statusDist.none > nonStaffData.length * 0.3) {
+    report.push(`• High growth opportunity with ${statusDist.none} uncontacted locations`);
   }
-  if (statusDist.recent > DATA.length * 0.15) {
+  if (statusDist.recent > nonStaffData.length * 0.15) {
     report.push(`• Move ${statusDist.recent} recent contacts to "In Progress"`);
   }
-  if (withNotes < DATA.length * 0.3) {
-    report.push(`• Improve documentation: Only ${Math.round(withNotes/DATA.length*100)}% of schools have notes`);
+  if (withNotes < nonStaffData.length * 0.3) {
+    report.push(`• Improve documentation: Only ${Math.round(withNotes/nonStaffData.length*100)}% of locations have notes`);
   }
   report.push(`• Focus on territories with highest uncontacted density`);
   report.push(`• Implement cluster-based outreach for efficiency`);
@@ -1298,7 +1336,7 @@ async function init(){
     }
   }
   
-  // Initialize insights
+  // Initialize insights (will show "select territory" message initially)
   updateTerritoryInsights();
   
   log('init ← done');
@@ -1340,14 +1378,14 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('btnDownloadAll').addEventListener('click', ()=>{
     const csv = toCSV(DATA, HEADER);
     const d   = new Date().toISOString().slice(0,10);
-    download(`schools-all-${d}.csv`, csv);
+    download(`territory-data-all-${d}.csv`, csv);
   });
 
   document.getElementById('btnDownloadFiltered').addEventListener('click', ()=>{
     const filtered = DATA.filter(r => visiblePredicate(r));
     const csv = toCSV(filtered, HEADER);
     const d   = new Date().toISOString().slice(0,10);
-    download(`schools-filtered-${d}.csv`, csv);
+    download(`territory-data-filtered-${d}.csv`, csv);
   });
 
   // Tab switching (only for 2 tabs now)
@@ -1402,14 +1440,14 @@ document.addEventListener('DOMContentLoaded',()=>{
     if (e.key === 'Enter') sendAIMessage();
   });
 
-  // AI Search
+  // AI Search (Advanced keyword search)
   document.getElementById('btnAISearch').addEventListener('click', () => {
     const query = document.getElementById('aiSearchBox').value.trim();
     if (!query) return;
     
     const results = performAISearch(query);
     if (results.length === 0) {
-      showToast('No results found for AI search', 'error');
+      showToast('No results found for: ' + query, 'error');
       return;
     }
     
@@ -1443,20 +1481,12 @@ document.addEventListener('DOMContentLoaded',()=>{
     showToast('Analysis complete - check Live Insights panel');
   });
 
-  document.getElementById('btnFindOptimal').addEventListener('click', async () => {
-    const result = aiAssistant.suggestRoute();
-    
-    // Show in AI chat
-    document.getElementById('aiPanel').classList.add('active');
-    const chat = document.getElementById('aiChat');
-    chat.innerHTML += `<div class="ai-message assistant">${result}</div>`;
-    chat.scrollTop = chat.scrollHeight;
-  });
-
   document.getElementById('btnPredictGrowth').addEventListener('click', () => {
     const visible = markers.filter(m => {
+      const st = normalizeStatus(m._rec.Status || m._rec.status);
+      if (st === 'staff') return false; // Exclude staff from predictions
       if (currentTerritory) return territoryVisible(m._rec);
-      return baseVisiblePredicate(m._rec);
+      return baseVisiblePredicate(m._rec) && st !== 'staff';
     });
     const noneCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'none').length;
     const inProgressCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'inprogress').length;
@@ -1476,12 +1506,12 @@ document.addEventListener('DOMContentLoaded',()=>{
     
     const prediction = `📈 Growth Prediction${context}:
 
-Current Pipeline:
-• ${inProgressCount} schools in progress (likely to close)
+Current Pipeline (excluding staff):
+• ${inProgressCount} locations in progress (likely to close)
 • ${recentCount} recent contacts (warm leads)
-• ${noneCount} uncontacted schools (cold prospects)
+• ${noneCount} uncontacted locations (cold prospects)
 
-Growth potential: ${growthPotential}% (${noneCount + recentCount} convertible schools)
+Growth potential: ${growthPotential}% (${noneCount + recentCount} convertible locations)
 
 Projected outcomes:
 • Short-term (In Progress → Current): ${Math.round(inProgressCount * 0.7)} likely conversions
