@@ -1068,7 +1068,6 @@ function buildPopupHTML(rec){
       ${canUpdateKey ? `
         <div class="popup-actions">
           <button class="update-btn" data-role="update-record">💾 Save Changes</button>
-          <button class="ai-btn" data-role="generate-email">🤖 Generate AI Email</button>
         </div>
       ` : `
         <div class="popup-readonly">
@@ -1095,7 +1094,6 @@ function addCircleFor(rec){
       const contactEmailInput = container.querySelector('[data-role="contact-email"]');
       const notesInput = container.querySelector('[data-role="notes-input"]');
       const updateBtn = container.querySelector('[data-role="update-record"]');
-      const aiBtn = container.querySelector('[data-role="generate-email"]');
       const timestampBtn = container.querySelector('[data-role="add-timestamp"]');
       
       if (!sel || !updateBtn) return;
@@ -1227,9 +1225,6 @@ function addCircleFor(rec){
       // Button click handlers
       updateBtn.addEventListener('click', saveChanges);
       
-      if (aiBtn) {
-        aiBtn.addEventListener('click', () => generateAIEmail(rec));
-      }
       
       // Ctrl+Enter in notes field
       if (notesInput) {
