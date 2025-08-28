@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Territory Mapper Pro (v14.2)</title>
+<title>Territory CRM Pro (v15.0)</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
   html, body, #map { height:100%; margin:0; }
@@ -43,6 +43,107 @@
   .tab-content { display:none; }
   .tab-content.active { display:block; }
 
+  /* Status filter styling */
+  .status-filter-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  
+  .status-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: white;
+  }
+  
+  .status-filter-item:hover {
+    background: #f8f9fa;
+    border-color: #6a1b9a;
+    transform: translateY(-1px);
+  }
+  
+  .status-filter-item input[type="checkbox"]:checked + .status-label {
+    font-weight: 600;
+    color: #6a1b9a;
+  }
+  
+  .status-filter-item:has(input:checked) {
+    background: #f0e6ff;
+    border-color: #6a1b9a;
+    border-width: 2px;
+  }
+  
+  /* Fallback for browsers that don't support :has() */
+  .status-filter-item.checked {
+    background: #f0e6ff;
+    border-color: #6a1b9a;
+    border-width: 2px;
+  }
+  
+  .status-filter-item input[type="checkbox"] {
+    margin: 0;
+  }
+  
+  .status-label {
+    font-weight: 500;
+    font-size: 12px;
+    user-select: none;
+    transition: all 0.2s ease;
+  }
+
+  /* Toggle switches for staff and stale contacts */
+  .toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 6px 0;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .toggle-slider {
+    position: relative;
+    width: 44px;
+    height: 22px;
+    background-color: #ccc;
+    border-radius: 11px;
+    transition: background-color 0.3s;
+  }
+
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 18px;
+    height: 18px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+  }
+
+  input[type="checkbox"]:checked + .toggle-slider {
+    background-color: #6a1b9a;
+  }
+
+  input[type="checkbox"]:checked + .toggle-slider::before {
+    transform: translateX(22px);
+  }
+
+  input[type="checkbox"] {
+    display: none;
+  }
+
+  .toggle-label {
+    font-weight: 500;
+  }
+
   /* Insights Panel - always visible */
   #insightsPanel {
     position:fixed; top:20px; right:20px; z-index:9998;
@@ -74,6 +175,114 @@
   }
   #insightsPanel.is-collapsed #insightsBody { display:none; }
   #insightsPanel.is-collapsed { max-height:unset; }
+
+  /* Enhanced insight sections */
+  .insight-section {
+    background: white;
+    margin-bottom: 15px;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  .insight-section h4 {
+    margin: 0 0 10px 0;
+    color: #333;
+    font-size: 16px;
+  }
+  
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+  
+  .metric {
+    text-align: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 6px;
+  }
+  
+  .metric.staff-metric {
+    background: #f0e6ff;
+    border: 1px solid #800080;
+  }
+  
+  .metric-value {
+    display: block;
+    font-size: 24px;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 4px;
+  }
+  
+  .metric-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  
+  .status-breakdown, .follow-up-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .status-item, .follow-up-item {
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 14px;
+  }
+  
+  .alert-section {
+    background: #fff3cd;
+    border-left: 4px solid #ff7f0e;
+  }
+  
+  .quick-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .quick-btn {
+    padding: 8px 12px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .quick-btn:hover {
+    background: #5a67d8;
+    transform: translateY(-1px);
+  }
+  
+  .more-items {
+    font-size: 12px;
+    color: #666;
+    text-align: center;
+    padding: 5px;
+  }
+  
+  .tab-updated {
+    background: #fff3cd !important;
+    color: #856404 !important;
+    animation: pulse 0.5s ease-in-out;
+  }
+  
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
   
   /* AI Assistant Panel */
   #aiPanel {
@@ -191,9 +400,101 @@
   
   /* Enhanced popup styling */
   .leaflet-popup-content {
-    min-width:250px;
-    max-width:350px;
+    min-width:280px;
+    max-width:380px;
   }
+  
+  .popup-header {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 15px;
+    border-radius: 8px 8px 0 0;
+    margin: -10px -10px 15px -10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .popup-header.staff-header {
+    background: linear-gradient(135deg, #800080, #9932cc);
+  }
+  
+  .popup-header h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+  
+  .group-badge {
+    background: rgba(255,255,255,0.2);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+  }
+  
+  .popup-content {
+    max-height: 500px;
+    overflow-y: auto;
+  }
+  
+  .popup-section {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .popup-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
+  
+  .popup-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 2px solid #eee;
+  }
+  
+  .update-btn, .ai-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .update-btn {
+    background: #2ca02c;
+    color: white;
+  }
+  
+  .update-btn:hover {
+    background: #228B22;
+    transform: translateY(-1px);
+  }
+  
+  .ai-btn {
+    background: #667eea;
+    color: white;
+  }
+  
+  .ai-btn:hover {
+    background: #5a67d8;
+    transform: translateY(-1px);
+  }
+  
+  .popup-readonly {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+    margin-top: 15px;
+    color: #666;
+  }
+
   .leaflet-popup-content textarea {
     font-family:system-ui, -apple-system, sans-serif;
   }
@@ -264,8 +565,8 @@
 <div id="panelHeader">
   <div class="title">
     <img src="madscience-logo.png" alt="Mad Science" style="height:28px; margin-right:8px;">
-    <span>Control Panel</span>
-    <span class="badge">v14.2</span>
+    <span>CRM Control Panel</span>
+    <span class="badge">v15.0</span>
   </div>
   <button id="btnCollapsePanel" title="Collapse/Expand">Collapse</button>
 </div>
@@ -277,7 +578,7 @@
       <div class="tab" data-tab="ai-tools">AI Tools</div>
     </div>
 
-    <!-- Filters Tab (Original Content) -->
+    <!-- Filters Tab (Enhanced CRM Content) -->
     <div id="filters-content" class="tab-content active">
       <div class="filter-block" style="margin-bottom:8px;">
         <label for="territorySel"><strong>Territory:</strong></label><br>
@@ -287,16 +588,30 @@
       </div>
 
       <div style="margin-bottom:8px;">
-        <div style="font-weight:600; margin-bottom:4px;">Status</div>
-        <label><input type="checkbox" class="statusChk" value="none" checked> None</label><br>
-        <label><input type="checkbox" class="statusChk" value="recent" checked> Recent</label><br>
-        <label><input type="checkbox" class="statusChk" value="inprogress" checked> In Progress</label><br>
-        <label><input type="checkbox" class="statusChk" value="current" checked> Current</label>
+        <div style="font-weight:600; margin-bottom:4px;">Status Pipeline</div>
+        <div class="status-filter-grid">
+          <label class="status-filter-item"><input type="checkbox" class="statusChk" value="none"><span class="status-label">None</span></label>
+          <label class="status-filter-item"><input type="checkbox" class="statusChk" value="firstoutreach"><span class="status-label">First Outreach</span></label>
+          <label class="status-filter-item"><input type="checkbox" class="statusChk" value="replied"><span class="status-label">Customer Replied</span></label>
+          <label class="status-filter-item"><input type="checkbox" class="statusChk" value="inprogress"><span class="status-label">In Progress</span></label>
+          <label class="status-filter-item"><input type="checkbox" class="statusChk" value="current"><span class="status-label">Current</span></label>
+          <label class="status-filter-item"><input type="checkbox" class="statusChk" value="uninterested"><span class="status-label">Uninterested</span></label>
+        </div>
       </div>
 
       <div style="margin-bottom:8px;">
-        <label style="font-weight:600;">
-          <input type="checkbox" id="showStaffChk" checked> Show Staff Locations
+        <div style="font-weight:600; margin-bottom:4px;">Display Options</div>
+        
+        <label class="toggle-container">
+          <input type="checkbox" id="showStaffToggle" checked>
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">Show Staff</span>
+        </label>
+        
+        <label class="toggle-container">
+          <input type="checkbox" id="showStaleToggle">
+          <span class="toggle-slider"></span>
+          <span class="toggle-label">Highlight Stale Contacts</span>
         </label>
       </div>
 
@@ -363,20 +678,18 @@
   </div>
 </div>
 
-<!-- Insights Panel (Always Visible) -->
+<!-- Enhanced Insights Panel -->
 <div id="insightsPanel">
   <div id="insightsHeader">
-    <div style="font-weight:700; font-size:14px;">📊 Live Insights</div>
+    <div style="font-weight:700; font-size:14px;">📊 CRM Insights</div>
     <button id="btnCollapseInsights" title="Collapse/Expand">Collapse</button>
   </div>
   <div id="insightsBody">
-    <div class="ai-analysis-card">
-      <h4 style="margin:0 0 8px 0;">Overview</h4>
-      <div id="territoryStats"></div>
-    </div>
-    <div class="ai-analysis-card">
-      <h4 style="margin:0 0 8px 0;">AI Recommendations</h4>
-      <div id="aiRecommendations"></div>
+    <div id="insights">
+      <div class="insight-section">
+        <h4>Overview</h4>
+        <div class="muted">Select a territory or group to see insights</div>
+      </div>
     </div>
   </div>
 </div>
@@ -400,9 +713,11 @@
 <div id="legend">
   <div style="font-weight:700; margin-bottom:6px;">Status Legend</div>
   <div><span class="swatch" style="background:#808080;"></span> None</div>
-  <div><span class="swatch" style="background:#1f77b4;"></span> Recent</div>
+  <div><span class="swatch" style="background:#5DADE2;"></span> First Outreach</div>
+  <div><span class="swatch" style="background:#17becf;"></span> Customer Replied</div>
   <div><span class="swatch" style="background:#ff7f0e;"></span> In Progress</div>
   <div><span class="swatch" style="background:#2ca02c;"></span> Current</div>
+  <div><span class="swatch" style="background:#d62728;"></span> Uninterested</div>
   <div><span class="swatch" style="background:#800080;"></span> Staff</div>
 </div>
 
@@ -411,9 +726,9 @@
 <div id="log">
   <div id="logHeader">
     <strong>Log</strong>
-    <button id="btnToggleLog" aria-expanded="true">Minimize</button>
+    <button id="btnToggleLog" aria-expanded="false">Expand</button>
   </div>
-  <div id="logBody"></div>
+  <div id="logBody" style="display:none;"></div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -424,7 +739,26 @@ const WRITE_ENDPOINT  = "https://script.google.com/macros/s/AKfycbwLziNp4LZSh1CM
 const WRITE_SECRET    = "123456pooydiapers";  // Authentication key
 const SHEET_TAB_NAME  = "Sheet1";  // Google Sheets tab name
 const TERRITORIES_URL = "territories.json";  // Territory boundaries file
-const COLOR = { none:"#808080", recent:"#1f77b4", current:"#2ca02c", inprogress:"#ff7f0e", staff:"#800080" };
+
+// Enhanced CRM status colors
+const COLOR = { 
+  none:"#808080",           // Gray - untouched
+  firstoutreach:"#5DADE2",  // Light Blue - we reached out  
+  replied:"#17becf",        // Teal - customer replied
+  inprogress:"#ff7f0e",     // Orange - actively negotiating
+  current:"#2ca02c",        // Green - active customer
+  uninterested:"#d62728",   // Red - dead lead
+  staff:"#800080"           // Purple - internal
+};
+
+// Days since last contact color coding
+function getStaleColor(daysSince) {
+  if (daysSince === null) return '#808080'; // Never contacted
+  if (daysSince <= 3) return '#2ca02c';     // Fresh - green
+  if (daysSince <= 7) return '#ff7f0e';     // Warm - orange  
+  if (daysSince <= 14) return '#d62728';    // Cold - red
+  return '#8B0000';                         // Stale - dark red
+}
 
 /* ===== Map ===== */
 const map = L.map('map').setView([45.2, -62.99], 7);
@@ -510,12 +844,38 @@ function normalizeRecords(rows){
     const raw=(r.active??r.Active??r.ACTIVE??'').toString().trim().toUpperCase();
     r.active = raw==='' ? true : !(raw==='FALSE'||raw==='0'||raw==='NO'||raw==='N');
     if(r.Id && !Number.isFinite(r.Id)){const n=parseFloat(r.Id); if(Number.isFinite(n)) r.Id=n}
-    // Initialize Notes field if it doesn't exist
+    // Initialize new CRM fields if they don't exist
     if(r.Notes === undefined && r.notes === undefined) r.Notes = '';
+    if(r.ContactName === undefined && r.contactName === undefined) r.ContactName = '';
+    if(r.ContactEmail === undefined && r.contactEmail === undefined) r.ContactEmail = '';
+    if(r.LastModified === undefined && r.lastModified === undefined) r.LastModified = '';
   });
 }
 function isValidLatLon(lat,lon){return Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180}
-function normalizeStatus(s){s=(s||'').toLowerCase().trim(); if(!['none','recent','inprogress','current','staff'].includes(s)) s='none'; return s}
+
+// Enhanced status normalization for CRM
+function normalizeStatus(s){
+  s=(s||'').toLowerCase().trim().replace(/[\s_-]+/g,''); 
+  if(!['none','firstoutreach','replied','inprogress','current','uninterested','staff'].includes(s)) {
+    // Handle legacy statuses
+    if(s === 'recent') return 'firstoutreach';
+    return 'none';
+  } 
+  return s;
+}
+
+// Calculate days since last contact
+function daysSinceLastContact(record) {
+  const lastMod = record.LastModified || record.lastModified || record['Last Modified'];
+  if (!lastMod) return null;
+  
+  const lastDate = new Date(lastMod);
+  const today = new Date();
+  const diffTime = Math.abs(today - lastDate);
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+}
+
 function getStatusColor(r){return COLOR[normalizeStatus(r.Status||r.status)]||COLOR.none}
 
 /* Territories */
@@ -539,35 +899,47 @@ function onTerritoryChange(){
   }
   // Rebuild group list for new territory
   buildGroupList();
-  requestAnimationFrame(applyFilters);
-  updateTerritoryInsights(); // AI feature
+  requestAnimationFrame(() => {
+    applyFilters();
+    // Force insights update
+    setTimeout(updateInsights, 100);
+  });
 }
 
-/* Filtering */
+/* Enhanced Filtering with CRM Status Support */
 let baseVisiblePredicate = rec => true;
 function updateFilter(){
   const statusSet=new Set(Array.from(document.querySelectorAll('.statusChk')).filter(cb=>cb.checked).map(cb=>cb.value));
-  const showStaff = document.getElementById('showStaffChk').checked;
+  const showStaff = document.getElementById('showStaffToggle').checked;
   const groupSel=document.getElementById('groupSel');
   const groupSet=new Set(Array.from(groupSel.selectedOptions).map(o=>o.value));
   const q=(document.getElementById('searchBox').value||'').trim().toLowerCase();
+  
   baseVisiblePredicate=function(rec){
     if(rec.active===false) return false;
+    
     const st = normalizeStatus(rec.Status||rec.status);
-    // Handle staff separately
+    
+    // Handle staff separately from business statuses
     if(st === 'staff') return showStaff;
-    // Check normal statuses
+    
+    // Check business statuses
     if(statusSet.size && !statusSet.has(st)) return false;
     if(groupSet.size){const g=(rec.Group||rec.group||'').trim(); if(!groupSet.has(g)) return false;}
     if(q){const hay=((rec.School||rec.SchoolName||rec.Name||'')+' '+(rec.Address||'')+' '+(rec.Group||'')+' '+(rec.Notes||'')).toLowerCase(); if(!hay.includes(q)) return false;}
     return true;
   };
+  
+  log(`Status filter changed: ${Array.from(statusSet).join(', ')}`);
+  
   requestAnimationFrame(()=>{ 
     applyFilters(); 
     if(LIST_ON) updateList(); 
-    updateTerritoryInsights(); // Update insights when filters change
+    // Update insights immediately after filters change
+    updateInsights();
   });
 }
+
 function territoryVisible(rec){
   if(!currentTerritory) return false;            // show nothing until a territory is selected
   if(!baseVisiblePredicate(rec)) return false;
@@ -579,23 +951,45 @@ function territoryVisible(rec){
 }
 let visiblePredicate = territoryVisible;
 function applyFilters(){
+  const showStale = document.getElementById('showStaleToggle').checked;
+  
   for (let i=0; i<markers.length; i++){
     const m = markers[i];
+    if (!m || !m._rec) continue; // Safety check
+    
     const show = visiblePredicate(m._rec);
     if(show){
       if(!map.hasLayer(m)) m.addTo(map);
       const col=getStatusColor(m._rec);
-      m.setStyle({color:col, fillColor:col});
+      
+      // Apply stale highlighting
+      let markerOptions = {color:col, fillColor:col};
+      
+      if (showStale && normalizeStatus(m._rec.Status || m._rec.status) !== 'staff') {
+        const daysSince = daysSinceLastContact(m._rec);
+        if (daysSince !== null && daysSince > 7) {
+          // Add visual indicators for stale contacts
+          markerOptions.color = '#ff0000';
+          markerOptions.weight = 3;
+          // Add pulsing effect for very stale contacts
+          if (daysSince > 14) {
+            markerOptions.radius = 8;
+          }
+        }
+      }
+      
+      m.setStyle(markerOptions);
     } else {
       if(map.hasLayer(m)) map.removeLayer(m);
     }
   }
 }
 
-/* Popups (status change and notes editing) */
+/* Enhanced Popups with CRM Fields */
 function formatPhone(p){const raw=String(p||'').trim(); if(!raw) return ''; const digits=raw.replace(/[^\d+]/g,''); return `<a href="tel:${digits}">${raw}</a>`}
 function formatEmail(e){const raw=String(e||'').trim(); if(!raw) return ''; return `<a href="mailto:${raw}">${raw}</a>`}
 function escapeHtml(text){const div=document.createElement('div');div.textContent=text;return div.innerHTML;}
+
 function buildPopupHTML(rec){
   const name=rec.School||rec.SchoolName||rec.Name||rec.LocationName||rec.Location||'Location';
   const addr=rec.Address||rec.address||'';
@@ -604,83 +998,139 @@ function buildPopupHTML(rec){
   const group=(rec.Group||rec.group||'').trim();
   const notes=(rec.Notes||rec.notes||'').trim();
   const st=normalizeStatus(rec.Status||rec.status);
-  const phoneHTML=phone?`<br>Phone: ${formatPhone(phone)}`:'';
-  const emailHTML=email?`<br>Email: ${formatEmail(email)}`:'';
-  const groupHTML=group?`<br>Group: ${escapeHtml(group)}`:'';
-  const select = `
-    <select data-role="status-select">
+  
+  // New CRM fields
+  const contactName = rec.ContactName || rec.contactName || rec['Contact Name'] || '';
+  const contactEmail = rec.ContactEmail || rec.Email || rec.email || rec['Email Address'] || '';
+  const lastModified = rec.LastModified || rec.lastModified || rec['Last Modified'] || '';
+  
+  // Calculate days since last contact
+  const daysSince = daysSinceLastContact(rec);
+  const daysDisplay = daysSince !== null ? 
+    `<span style="color:${getStaleColor(daysSince)}; font-weight: bold;">${daysSince} days ago</span>` : 
+    '<span style="color:#999;">Never contacted</span>';
+  
+  const statusSelect = `
+    <select data-role="status-select" style="width:100%; margin: 5px 0;">
       <option value="none"${st==='none'?' selected':''}>None</option>
-      <option value="recent"${st==='recent'?' selected':''}>Recent</option>
+      <option value="firstoutreach"${st==='firstoutreach'?' selected':''}>First Outreach</option>
+      <option value="replied"${st==='replied'?' selected':''}>Customer Replied</option>
       <option value="inprogress"${st==='inprogress'?' selected':''}>In Progress</option>
       <option value="current"${st==='current'?' selected':''}>Current</option>
-      <option value="staff"${st==='staff'?' selected':''}>Staff</option>
+      <option value="uninterested"${st==='uninterested'?' selected':''}>Uninterested</option>
+      ${st==='staff' ? '<option value="staff" selected>Staff</option>' : ''}
     </select>`;
-  const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  const notesField = `
-    <div style="margin-top:8px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-        <span style="font-weight:600; font-size:12px;">Notes:</span>
-        <button data-role="add-timestamp" style="font-size:11px; padding:2px 6px; border-radius:4px;" type="button">+ Add ${today}</button>
-      </div>
-      <textarea data-role="notes-input" style="width:100%; min-height:50px; padding:4px; font-size:12px; border:1px solid #ddd; border-radius:4px; resize:vertical;" placeholder="Add notes (e.g., Spoke with contact, follow up next week)">${escapeHtml(notes)}</textarea>
-      <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; color:#666; margin-top:2px;">
-        <span>Tip: Press Ctrl+Enter to save</span>
-        <span data-role="char-count">${notes.length} chars</span>
-      </div>
-    </div>`;
+  
   const canUpdateKey = !!(rec.Id || ((rec.School||rec.SchoolName||rec.Name||rec.LocationName||rec.Location) && rec.Address));
-  const btn = `<button data-role="save-changes" ${canUpdateKey?'':'disabled'} style="width:100%; margin-top:6px;">${canUpdateKey?'Save All Changes':'Save (no key)'}</button>`;
-  const tip = canUpdateKey ? '' : `<div class="muted" style="margin-top:4px;">Add an <strong>Id</strong> column or ensure Name & Address exist to enable updates.</div>`;
-  return `<div><strong>${escapeHtml(name)}</strong><br>${escapeHtml(addr)}${groupHTML}${phoneHTML}${emailHTML}</div>
-          <div class="popup-row">Status: ${select}</div>
-          ${notesField}
-          ${btn}
-          ${tip}`;
+  const isStaff = st === 'staff';
+  
+  return `
+    <div class="popup-header ${isStaff ? 'staff-header' : ''}">
+      <h3>${escapeHtml(name)}</h3>
+      ${group ? `<span class="group-badge">${escapeHtml(group)}</span>` : ''}
+    </div>
+    
+    <div class="popup-content">
+      <div class="popup-section">
+        <strong>📍 Address:</strong> ${escapeHtml(addr)}
+        ${phone ? `<br><strong>📞 Phone:</strong> ${formatPhone(phone)}` : ''}
+        ${email ? `<br><strong>📧 Email:</strong> ${formatEmail(email)}` : ''}
+      </div>
+      
+      <div class="popup-section">
+        <strong>📊 Status:</strong> ${statusSelect}
+      </div>
+      
+      <div class="popup-section">
+        <strong>👤 Contact Name:</strong>
+        <input type="text" data-role="contact-name" value="${escapeHtml(contactName)}" 
+               placeholder="Contact person name" style="width:100%; margin-top: 5px;" ${!canUpdateKey ? 'disabled' : ''}>
+      </div>
+      
+      <div class="popup-section">
+        <strong>📧 Contact Email:</strong>
+        <input type="email" data-role="contact-email" value="${escapeHtml(contactEmail)}" 
+               placeholder="contact@school.com" style="width:100%; margin-top: 5px;" ${!canUpdateKey ? 'disabled' : ''}>
+      </div>
+      
+      <div class="popup-section">
+        <strong>📝 Notes:</strong>
+        <textarea data-role="notes-input" placeholder="e.g., 'Devan contacted Aug 22 by email'" 
+                  style="width:100%; height: 80px; margin-top: 5px; resize: vertical;" ${!canUpdateKey ? 'disabled' : ''}>${escapeHtml(notes)}</textarea>
+        <button data-role="add-timestamp" style="font-size:11px; padding:2px 6px; border-radius:4px; margin-top: 4px;" type="button">+ Add Today</button>
+      </div>
+      
+      <div class="popup-section">
+        <strong>⏰ Last Contact:</strong> ${daysDisplay}
+        ${lastModified ? `<br><small style="color:#666;">Modified: ${new Date(lastModified).toLocaleDateString()}</small>` : ''}
+      </div>
+      
+      ${canUpdateKey ? `
+        <div class="popup-actions">
+          <button class="update-btn" data-role="update-record">💾 Save Changes</button>
+          <button class="ai-btn" data-role="generate-email">🤖 Generate AI Email</button>
+        </div>
+      ` : `
+        <div class="popup-readonly">
+          <small>🔒 Read-only mode - Add update key to edit</small>
+        </div>
+      `}
+    </div>`;
 }
+
 function addCircleFor(rec){
   const m=L.circleMarker([rec.lat,rec.lon],{radius:6,color:getStatusColor(rec),fillColor:getStatusColor(rec),fillOpacity:0.9,weight:1});
   m._rec=rec;
   m.on('click',()=>{
     const html = buildPopupHTML(rec);
-    m.bindPopup(html).openPopup();
+    m.bindPopup(html, {maxWidth: 400}).openPopup();
+    
+    // Enhanced popup interaction setup
     setTimeout(()=>{
       const container = document.querySelector('.leaflet-popup-content');
-      const sel = container && container.querySelector('[data-role="status-select"]');
-      const notesInput = container && container.querySelector('[data-role="notes-input"]');
-      const btn = container && container.querySelector('[data-role="save-changes"]');
-      const timestampBtn = container && container.querySelector('[data-role="add-timestamp"]');
-      const charCount = container && container.querySelector('[data-role="char-count"]');
-      if (!sel || !btn) return;
+      if (!container) return;
+      
+      const sel = container.querySelector('[data-role="status-select"]');
+      const contactNameInput = container.querySelector('[data-role="contact-name"]');
+      const contactEmailInput = container.querySelector('[data-role="contact-email"]');
+      const notesInput = container.querySelector('[data-role="notes-input"]');
+      const updateBtn = container.querySelector('[data-role="update-record"]');
+      const aiBtn = container.querySelector('[data-role="generate-email"]');
+      const timestampBtn = container.querySelector('[data-role="add-timestamp"]');
+      
+      if (!sel || !updateBtn) return;
       
       // Track unsaved changes
       let hasUnsavedChanges = false;
       const checkForChanges = () => {
         const currentSt = sel.value;
+        const currentContactName = contactNameInput ? contactNameInput.value.trim() : '';
+        const currentContactEmail = contactEmailInput ? contactEmailInput.value.trim() : '';
         const currentNotes = notesInput ? notesInput.value.trim() : '';
         const originalSt = normalizeStatus(rec.Status||rec.status);
+        const originalContactName = (rec.ContactName||rec.contactName||'').trim();
+        const originalContactEmail = (rec.ContactEmail||rec.Email||rec.email||'').trim();
         const originalNotes = (rec.Notes||rec.notes||'').trim();
         
-        hasUnsavedChanges = (currentSt !== originalSt || currentNotes !== originalNotes);
+        hasUnsavedChanges = (currentSt !== originalSt || 
+                            currentContactName !== originalContactName ||
+                            currentContactEmail !== originalContactEmail ||
+                            currentNotes !== originalNotes);
         
         if (hasUnsavedChanges) {
-          btn.style.background = '#ff7f0e';
-          btn.textContent = 'Save Changes*';
+          updateBtn.style.background = '#ff7f0e';
+          updateBtn.textContent = '💾 Save Changes*';
         } else {
-          btn.style.background = '';
-          btn.textContent = 'Save All Changes';
-        }
-        
-        // Update character count
-        if (charCount && notesInput) {
-          charCount.textContent = `${notesInput.value.length} chars`;
+          updateBtn.style.background = '#2ca02c';
+          updateBtn.textContent = '💾 Save Changes';
         }
       };
       
       // Monitor changes
       sel.addEventListener('change', checkForChanges);
-      if (notesInput) {
-        notesInput.addEventListener('input', checkForChanges);
-      }
+      if (contactNameInput) contactNameInput.addEventListener('input', checkForChanges);
+      if (contactEmailInput) contactEmailInput.addEventListener('input', checkForChanges);
+      if (notesInput) notesInput.addEventListener('input', checkForChanges);
       
       // Add timestamp button handler
       if (timestampBtn && notesInput) {
@@ -690,7 +1140,6 @@ function addCircleFor(rec){
           const newText = currentText ? `${currentText}\n${today}: ` : `${today}: `;
           notesInput.value = newText;
           notesInput.focus();
-          // Move cursor to end
           notesInput.setSelectionRange(newText.length, newText.length);
           checkForChanges();
         });
@@ -699,23 +1148,33 @@ function addCircleFor(rec){
       // Save function
       const saveChanges = async () => {
         const newSt = sel.value;
+        const newContactName = contactNameInput ? contactNameInput.value.trim() : '';
+        const newContactEmail = contactEmailInput ? contactEmailInput.value.trim() : '';
         const newNotes = notesInput ? notesInput.value.trim() : '';
         const oldSt = normalizeStatus(rec.Status||rec.status);
+        const oldContactName = (rec.ContactName||rec.contactName||'').trim();
+        const oldContactEmail = (rec.ContactEmail||rec.Email||rec.email||'').trim();
         const oldNotes = (rec.Notes||rec.notes||'').trim();
         
         // Check if anything changed
-        if (newSt === oldSt && newNotes === oldNotes) {
+        if (newSt === oldSt && newContactName === oldContactName && 
+            newContactEmail === oldContactEmail && newNotes === oldNotes) {
           showToast('No changes to save');
           return;
         }
         
         // Show saving state
-        btn.disabled = true;
-        btn.textContent = 'Saving...';
+        updateBtn.disabled = true;
+        updateBtn.textContent = '💾 Saving...';
         
         // Update local record optimistically
+        const oldLastModified = rec.LastModified;
         rec.Status = newSt;
+        rec.ContactName = newContactName;
+        rec.ContactEmail = newContactEmail;
         rec.Notes = newNotes;
+        rec.LastModified = new Date().toISOString();
+        
         m.setStyle({ color: getStatusColor(rec), fillColor: getStatusColor(rec) });
         
         const keyField = rec.Id ? 'Id' : 'School+Address';
@@ -725,43 +1184,52 @@ function addCircleFor(rec){
         });
         
         // Build patch with only changed fields
-        const patch = {};
+        const patch = { LastModified: rec.LastModified };
         if (newSt !== oldSt) patch.Status = newSt;
+        if (newContactName !== oldContactName) patch.ContactName = newContactName;
+        if (newContactEmail !== oldContactEmail) patch.ContactEmail = newContactEmail;
         if (newNotes !== oldNotes) patch.Notes = newNotes;
         
         try{
           const res = await updateRowInSheet({ keyField, keyValue, patch });
-          log('saved changes to row '+(res && res.rowNumber ? res.rowNumber : '?'));
+          log('saved CRM changes to row '+(res && res.rowNumber ? res.rowNumber : '?'));
           
           // Show what was updated
           const updates = [];
           if (newSt !== oldSt) updates.push('status');
+          if (newContactName !== oldContactName) updates.push('contact name');
+          if (newContactEmail !== oldContactEmail) updates.push('contact email');
           if (newNotes !== oldNotes) updates.push('notes');
-          showToast(`✅ Updated ${updates.join(' and ')}`);
+          showToast(`✅ Updated ${updates.join(', ')}`);
           
           // Refresh popup with new data
           m.setPopupContent(buildPopupHTML(rec));
           
           // Update insights if filters might be affected
-          if (newSt !== oldSt) {
-            requestAnimationFrame(() => {
-              applyFilters();
-              updateTerritoryInsights();
-            });
-          }
+          requestAnimationFrame(() => {
+            applyFilters();
+            updateInsights();
+          });
         }catch(err){
-          log('update FAIL: '+(err && err.message ? err.message : err));
+          log('CRM update FAIL: '+(err && err.message ? err.message : err));
           showToast('❌ Could not save changes, reverting','error');
           // Revert changes
           rec.Status = oldSt;
+          rec.ContactName = oldContactName;
+          rec.ContactEmail = oldContactEmail;
           rec.Notes = oldNotes;
+          rec.LastModified = oldLastModified;
           m.setStyle({ color: getStatusColor(rec), fillColor: getStatusColor(rec) });
           m.setPopupContent(buildPopupHTML(rec));
         }
       };
       
-      // Button click
-      btn.addEventListener('click', saveChanges);
+      // Button click handlers
+      updateBtn.addEventListener('click', saveChanges);
+      
+      if (aiBtn) {
+        aiBtn.addEventListener('click', () => generateAIEmail(rec));
+      }
       
       // Ctrl+Enter in notes field
       if (notesInput) {
@@ -841,10 +1309,11 @@ function updateList(){
   const list=document.getElementById('schoolList'); list.innerHTML='';
   const items=[];
   markers.forEach(m=>{
+    if (!m || !m._rec) return;
     const r=m._rec; 
     const st = normalizeStatus(r.Status || r.status);
-    // Only show in list if visible and not staff (unless staff toggle is on)
-    if(visiblePredicate(r)) {
+    // Only show in list if visible using map.hasLayer
+    if(map.hasLayer(m)) {
       items.push({
         name:r.School||r.SchoolName||r.Name||r.LocationName||r.Location||'Location',
         addr:r.Address||'',
@@ -864,15 +1333,221 @@ function updateList(){
   });
 }
 
+/* Enhanced Insights with CRM Tracking */
+function updateInsights(){
+  if(!markers.length) return;
+  
+  // Get visible markers by checking if they're currently on the map
+  const visibleMarkers = markers.filter(m => m && m._rec && map.hasLayer(m));
+  const businessMarkers = visibleMarkers.filter(m => normalizeStatus(m._rec.Status || m._rec.status) !== 'staff');
+  const staffMarkers = visibleMarkers.filter(m => normalizeStatus(m._rec.Status || m._rec.status) === 'staff');
+  
+  // Status breakdown (excluding staff)
+  const statusCounts = {};
+  const staleContacts = [];
+  const followUpNeeded = [];
+  
+  businessMarkers.forEach(m => {
+    const rec = m._rec;
+    const status = normalizeStatus(rec.Status || rec.status);
+    statusCounts[status] = (statusCounts[status] || 0) + 1;
+    
+    // Check for stale contacts and follow-up needs
+    const daysSince = daysSinceLastContact(rec);
+    const schoolName = rec.School || rec.SchoolName || rec.Name || 'School';
+    
+    if (daysSince !== null) {
+      // Follow-up logic based on status
+      let followUpDays = 0;
+      switch(status) {
+        case 'firstoutreach': followUpDays = 3; break;
+        case 'replied': followUpDays = 7; break;
+        case 'inprogress': followUpDays = 5; break;
+        case 'current': followUpDays = 30; break;
+        default: followUpDays = 14; break;
+      }
+      
+      if (daysSince >= followUpDays) {
+        followUpNeeded.push({
+          school: schoolName,
+          status: status,
+          days: daysSince,
+          urgency: daysSince > followUpDays * 2 ? 'high' : 'medium'
+        });
+      }
+      
+      if (daysSince > 14) {
+        staleContacts.push({
+          school: schoolName,
+          days: daysSince
+        });
+      }
+    }
+  });
+  
+  // Build context
+  const groupSel = document.getElementById('groupSel');
+  const selectedGroups = Array.from(groupSel.selectedOptions).map(o => o.value);
+  let context = '';
+  if (selectedGroups.length > 0) {
+    context = ` for ${selectedGroups.join(', ')}`;
+  }
+  if (currentTerritory) {
+    context += ` in ${currentTerritory.name}`;
+  }
+  
+  // Calculate metrics
+  const totalBusiness = businessMarkers.length;
+  const totalStaff = staffMarkers.length;
+  const noneCount = statusCounts.none || 0;
+  const coverage = totalBusiness > 0 ? Math.round((totalBusiness - noneCount) / totalBusiness * 100) : 0;
+  const conversionRate = businessMarkers.length > 0 ? Math.round((statusCounts.current || 0) / businessMarkers.length * 100) : 0;
+  
+  // Build insights HTML
+  let insightsHTML = `
+    <div class="insight-section">
+      <h4>📊 Overview${context}</h4>
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-value">${totalBusiness}</div>
+          <div class="metric-label">Schools</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">${coverage}%</div>
+          <div class="metric-label">Coverage</div>
+        </div>
+        <div class="metric">
+          <div class="metric-value">${conversionRate}%</div>
+          <div class="metric-label">Conversion</div>
+        </div>
+        ${totalStaff > 0 ? `
+        <div class="metric staff-metric">
+          <div class="metric-value">${totalStaff}</div>
+          <div class="metric-label">Staff</div>
+        </div>` : ''}
+      </div>
+    </div>`;
+  
+  // Status breakdown
+  if (totalBusiness > 0) {
+    insightsHTML += `
+      <div class="insight-section">
+        <h4>🎯 Pipeline Status</h4>
+        <div class="status-breakdown">`;
+        
+    ['none', 'firstoutreach', 'replied', 'inprogress', 'current', 'uninterested'].forEach(status => {
+      const count = statusCounts[status] || 0;
+      if (count > 0) {
+        const percentage = Math.round(count / totalBusiness * 100);
+        const statusNames = {
+          none: 'None',
+          firstoutreach: 'First Outreach',
+          replied: 'Customer Replied', 
+          inprogress: 'In Progress',
+          current: 'Current',
+          uninterested: 'Uninterested'
+        };
+        insightsHTML += `
+          <div class="status-item" style="border-left: 4px solid ${COLOR[status]};">
+            <strong>${statusNames[status]}</strong>: ${count} (${percentage}%)
+          </div>`;
+      }
+    });
+    
+    insightsHTML += `</div></div>`;
+  }
+  
+  // Follow-up alerts
+  if (followUpNeeded.length > 0) {
+    insightsHTML += `
+      <div class="insight-section alert-section">
+        <h4>⚠️ Follow-up Required (${followUpNeeded.length})</h4>
+        <div class="follow-up-list">`;
+        
+    followUpNeeded.slice(0, 5).forEach(item => {
+      const urgencyColor = item.urgency === 'high' ? '#d62728' : '#ff7f0e';
+      const statusNames = {
+        none: 'no contact',
+        firstoutreach: 'first outreach',
+        replied: 'customer reply', 
+        inprogress: 'in progress',
+        current: 'current client check'
+      };
+      insightsHTML += `
+        <div class="follow-up-item" style="border-left: 3px solid ${urgencyColor};">
+          <strong>${item.school}</strong><br>
+          <small>${item.days} days since ${statusNames[item.status] || item.status}</small>
+        </div>`;
+    });
+    
+    if (followUpNeeded.length > 5) {
+      insightsHTML += `<div class="more-items">...and ${followUpNeeded.length - 5} more</div>`;
+    }
+    
+    insightsHTML += `</div></div>`;
+  }
+  
+  // Quick actions
+  insightsHTML += `
+    <div class="insight-section">
+      <h4>🚀 Quick Actions</h4>
+      <div class="quick-actions">
+        <button class="quick-btn" onclick="filterByStatus('none')">Focus Uncontacted (${noneCount})</button>
+        <button class="quick-btn" onclick="filterByStale()">Show Stale Contacts (${staleContacts.length})</button>
+      </div>
+    </div>`;
+  
+  document.getElementById('insights').innerHTML = insightsHTML;
+  
+  // Highlight insights when context changes
+  const insightsPanel = document.getElementById('insightsPanel');
+  const insightsHeader = document.getElementById('insightsHeader');
+  if (selectedGroups.length > 0 || currentTerritory) {
+    insightsPanel.classList.add('highlighted');
+    insightsHeader.classList.add('has-update');
+    setTimeout(() => {
+      insightsPanel.classList.remove('highlighted');
+      insightsHeader.classList.remove('has-update');
+    }, 1500);
+  }
+}
+
+// Quick filter functions
+function filterByStatus(status) {
+  const checkboxes = document.querySelectorAll('.statusChk');
+  // Clear existing selections
+  checkboxes.forEach(cb => cb.checked = false);
+  // Select the target status
+  checkboxes.forEach(cb => {
+    if (cb.value === status) cb.checked = true;
+  });
+  updateFilter();
+}
+
+function filterByStale() {
+  document.getElementById('showStaleToggle').checked = true;
+  updateFilter();
+}
+
 /* Downloads */
 function toCSV(rows, header){
   const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-  // Ensure Notes column is included if it exists in data but not header
+  // Ensure new CRM columns are included
+  const crmColumns = ['ContactName', 'ContactEmail', 'LastModified'];
   const hasNotes = rows.some(r => r.Notes !== undefined || r.notes !== undefined);
   const finalHeader = [...header];
+  
+  // Add missing CRM columns
+  crmColumns.forEach(col => {
+    if (!header.includes(col) && rows.some(r => r[col] !== undefined)) {
+      finalHeader.push(col);
+    }
+  });
+  
   if (hasNotes && !header.includes('Notes') && !header.includes('notes')) {
     finalHeader.push('Notes');
   }
+  
   const lines=[finalHeader.map(esc).join(',')];
   rows.forEach(r=>lines.push(finalHeader.map(h=>esc(r[h])).join(',')));
   return lines.join('\n');
@@ -891,7 +1566,7 @@ function download(filename, text){
   });
 }
 
-/* Server call: update status and/or notes */
+/* Server call: update CRM fields */
 async function updateRowInSheet({ keyField, keyValue, patch }){
   const res = await fetchWithTimeout(WRITE_ENDPOINT, {
     method: 'POST',
@@ -908,21 +1583,24 @@ async function updateRowInSheet({ keyField, keyValue, patch }){
   return json;
 }
 
-/* ===== AI FEATURES ===== */
+/* ===== ENHANCED AI FEATURES ===== */
 
-// AI Assistant functionality
-class AIAssistant {
+// Enhanced AI Assistant with CRM Context
+class EnhancedAIAssistant {
   constructor() {
     this.context = {
       totalSchools: 0,
       territories: [],
       currentTerritory: null,
-      statusDistribution: {}
+      statusDistribution: {},
+      crmMetrics: {}
     };
   }
 
   updateContext() {
-    this.context.totalSchools = DATA.filter(r => normalizeStatus(r.Status || r.status) !== 'staff').length;
+    // Get business schools (exclude staff)
+    const businessSchools = DATA.filter(r => normalizeStatus(r.Status || r.status) !== 'staff');
+    this.context.totalSchools = businessSchools.length;
     this.context.territories = TERRITORIES.map(t => t.name);
     this.context.currentTerritory = currentTerritory?.name;
     
@@ -930,11 +1608,11 @@ class AIAssistant {
     const groupSel = document.getElementById('groupSel');
     this.context.selectedGroups = Array.from(groupSel.selectedOptions).map(o => o.value);
     
-    // Calculate status distribution for visible schools (excluding staff)
-    const dist = {none:0, recent:0, inprogress:0, current:0};
+    // Calculate enhanced status distribution
+    const dist = {none:0, firstoutreach:0, replied:0, inprogress:0, current:0, uninterested:0};
     const visible = markers.filter(m => {
       const st = normalizeStatus(m._rec.Status || m._rec.status);
-      if (st === 'staff') return false; // Exclude staff
+      if (st === 'staff') return false;
       if (currentTerritory) return territoryVisible(m._rec);
       return baseVisiblePredicate(m._rec);
     });
@@ -943,8 +1621,33 @@ class AIAssistant {
       const st = normalizeStatus(m._rec.Status || m._rec.status);
       if (st !== 'staff') dist[st]++;
     });
+    
     this.context.statusDistribution = dist;
     this.context.visibleSchools = visible.length;
+    
+    // CRM metrics
+    const withContactInfo = visible.filter(m => {
+      const rec = m._rec;
+      return (rec.ContactName || rec.contactName || '').trim().length > 0 ||
+             (rec.ContactEmail || rec.Email || rec.email || '').trim().length > 0;
+    }).length;
+    
+    const withNotes = visible.filter(m => {
+      const rec = m._rec;
+      return (rec.Notes || rec.notes || '').trim().length > 0;
+    }).length;
+    
+    const staleContacts = visible.filter(m => {
+      const daysSince = daysSinceLastContact(m._rec);
+      return daysSince !== null && daysSince > 14;
+    }).length;
+    
+    this.context.crmMetrics = {
+      withContactInfo,
+      withNotes,
+      staleContacts,
+      dataCompleteness: Math.round((withContactInfo + withNotes) / (visible.length * 2) * 100)
+    };
   }
 
   async processQuery(query) {
@@ -956,16 +1659,31 @@ class AIAssistant {
       contextStr += ` (${this.context.selectedGroups.join(', ')})`;
     }
     
-    // Simple pattern matching for common queries
+    // Enhanced pattern matching for CRM queries
     const lowerQuery = query.toLowerCase();
     
-    if (lowerQuery.includes('how many')) {
-      return `There are ${this.context.totalSchools} locations total (excluding staff). Currently showing ${this.context.visibleSchools} locations in ${contextStr}.`;
+    if (lowerQuery.includes('how many') || lowerQuery.includes('count')) {
+      return `There are ${this.context.totalSchools} business locations total (excluding staff). Currently showing ${this.context.visibleSchools} locations in ${contextStr}.`;
     }
     
-    if (lowerQuery.includes('status') || lowerQuery.includes('breakdown')) {
+    if (lowerQuery.includes('status') || lowerQuery.includes('breakdown') || lowerQuery.includes('pipeline')) {
       const dist = this.context.statusDistribution;
-      return `Status breakdown for ${contextStr}:\n• None: ${dist.none}\n• Recent: ${dist.recent}\n• In Progress: ${dist.inprogress}\n• Current: ${dist.current}\n(Staff excluded from counts)`;
+      return `CRM Pipeline for ${contextStr}:\n• None: ${dist.none}\n• First Outreach: ${dist.firstoutreach}\n• Customer Replied: ${dist.replied}\n• In Progress: ${dist.inprogress}\n• Current Clients: ${dist.current}\n• Uninterested: ${dist.uninterested}\n\nConversion Rate: ${Math.round((dist.current / this.context.visibleSchools) * 100)}%`;
+    }
+    
+    if (lowerQuery.includes('data quality') || lowerQuery.includes('completeness') || lowerQuery.includes('crm data')) {
+      const metrics = this.context.crmMetrics;
+      return `CRM Data Quality for ${contextStr}:\n• Contact Info: ${metrics.withContactInfo}/${this.context.visibleSchools} (${Math.round(metrics.withContactInfo/this.context.visibleSchools*100)}%)\n• With Notes: ${metrics.withNotes}/${this.context.visibleSchools} (${Math.round(metrics.withNotes/this.context.visibleSchools*100)}%)\n• Stale Contacts: ${metrics.staleContacts} (no activity >14 days)\n• Overall Completeness: ${metrics.dataCompleteness}%`;
+    }
+    
+    if (lowerQuery.includes('follow up') || lowerQuery.includes('overdue') || lowerQuery.includes('stale')) {
+      const stale = this.context.crmMetrics.staleContacts;
+      return `Follow-up Status for ${contextStr}:\n• Stale Contacts: ${stale} locations with no activity >14 days\n• Recommendation: ${stale > 0 ? `Focus on re-engaging these ${stale} contacts` : 'Good activity levels!'}\n\nTip: Use the "Show Stale Contacts" toggle to highlight them on the map.`;
+    }
+    
+    if (lowerQuery.includes('contact') && (lowerQuery.includes('info') || lowerQuery.includes('email') || lowerQuery.includes('name'))) {
+      const withInfo = this.context.crmMetrics.withContactInfo;
+      return `Contact Information for ${contextStr}:\n• ${withInfo}/${this.context.visibleSchools} locations have contact details (${Math.round(withInfo/this.context.visibleSchools*100)}%)\n• Missing: ${this.context.visibleSchools - withInfo} locations need contact info\n\nTip: Click any location marker to add/edit contact information directly!`;
     }
     
     if (lowerQuery.includes('group') && this.context.selectedGroups.length > 0) {
@@ -977,36 +1695,24 @@ class AIAssistant {
       return `Selected group(s): ${groups.join(', ')}\nSchools in selection: ${groupData.length}\nThis represents ${Math.round(groupData.length/this.context.visibleSchools*100)}% of visible schools in ${this.context.currentTerritory || 'the current view'}.`;
     }
     
-    if (lowerQuery.includes('territory') && lowerQuery.includes('most')) {
-      const territoryCounts = {};
-      TERRITORIES.forEach(t => {
-        const count = DATA.filter(r => {
-          if (!Number.isFinite(r.lat) || !Number.isFinite(r.lon)) return false;
-          return pointInGeometry(r.lon, r.lat, t.geometry);
-        }).length;
-        territoryCounts[t.name] = count;
-      });
-      const sorted = Object.entries(territoryCounts).sort((a,b) => b[1] - a[1]);
-      return `Territories by school count:\n${sorted.slice(0,5).map(([name,count]) => `• ${name}: ${count} schools`).join('\n')}`;
+    if (lowerQuery.includes('recommend') || lowerQuery.includes('suggest') || lowerQuery.includes('priority')) {
+      return this.generateCRMRecommendation();
     }
     
-    if (lowerQuery.includes('recommend') || lowerQuery.includes('suggest')) {
-      return this.generateRecommendation();
-    }
-    
-    // Default response
-    return `I can help you with:\n• Location counts and statistics\n• Territory analysis\n• Group-specific insights\n• Status breakdowns\n• Strategic recommendations\n\nCurrent context: ${contextStr}\n\nTip: Click any location marker to update status and add/edit notes directly!\n\nWhat would you like to know?`;
+    // Default enhanced response
+    return `I can help you with CRM insights:\n• Pipeline analysis and status breakdowns\n• Contact data quality assessment\n• Follow-up recommendations\n• Territory and group analysis\n• Growth predictions\n\nCurrent context: ${contextStr}\n\nYour CRM data completeness: ${this.context.crmMetrics.dataCompleteness}%\nStale contacts: ${this.context.crmMetrics.staleContacts}\n\nTip: Click any location marker to update status, add contact info, and manage notes!\n\nWhat would you like to know?`;
   }
 
-  generateRecommendation() {
+  generateCRMRecommendation() {
     const visible = markers.filter(m => {
       const st = normalizeStatus(m._rec.Status || m._rec.status);
-      if (st === 'staff') return false; // Exclude staff
+      if (st === 'staff') return false;
       if (currentTerritory) return territoryVisible(m._rec);
       return baseVisiblePredicate(m._rec) && st !== 'staff';
     });
-    const noneCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'none').length;
-    const inProgressCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'inprogress').length;
+    
+    const dist = this.context.statusDistribution;
+    const metrics = this.context.crmMetrics;
     
     // Build context for recommendations
     let context = '';
@@ -1021,26 +1727,215 @@ class AIAssistant {
       return `📊 No locations found${context}. Try adjusting your filters or selecting a different territory/group.`;
     }
     
-    if (inProgressCount > visible.length * 0.2) {
-      return `📊 Recommendation: Focus on closing deals${context}. You have ${inProgressCount} locations (${Math.round(inProgressCount/visible.length*100)}%) in progress. Schedule follow-ups to convert them to current clients.`;
+    const recommendations = [];
+    
+    // Data quality recommendations
+    if (metrics.dataCompleteness < 50) {
+      recommendations.push(`🔧 Data Priority: Improve CRM data quality (${metrics.dataCompleteness}% complete)`);
     }
     
-    if (noneCount > visible.length * 0.5) {
-      return `📊 Recommendation: Focus on converting uncontacted locations${context}. You have ${noneCount} uncontacted locations (${Math.round(noneCount/visible.length*100)}%) in the current view. Consider prioritizing clusters for efficient outreach.`;
+    if (metrics.staleContacts > visible.length * 0.2) {
+      recommendations.push(`⏰ Follow-up Priority: ${metrics.staleContacts} stale contacts need attention`);
     }
     
-    const recentCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'recent').length;
-    if (recentCount > visible.length * 0.3) {
-      return `📊 Recommendation: Move recent contacts to "In Progress"${context}. You have ${recentCount} locations (${Math.round(recentCount/visible.length*100)}%) that were recently contacted. Follow up to advance these opportunities.`;
+    // Pipeline recommendations
+    if (dist.inprogress > visible.length * 0.15) {
+      recommendations.push(`💼 Sales Priority: Focus on closing ${dist.inprogress} in-progress deals`);
     }
     
-    return `📊 Recommendation: Your coverage${context} looks good! Consider expanding to adjacent areas or deepening relationships with current clients.`;
+    if (dist.replied > visible.length * 0.2) {
+      recommendations.push(`📞 Response Priority: Follow up with ${dist.replied} schools that replied`);
+    }
+    
+    if (dist.none > visible.length * 0.4) {
+      recommendations.push(`📈 Growth Priority: ${dist.none} uncontacted schools (${Math.round(dist.none/visible.length*100)}%) - huge opportunity`);
+    }
+    
+    // Contact completeness
+    if (metrics.withContactInfo < visible.length * 0.6) {
+      recommendations.push(`👤 Data Priority: Add contact info for ${visible.length - metrics.withContactInfo} locations`);
+    }
+    
+    if (recommendations.length === 0) {
+      recommendations.push(`✅ Your CRM management${context} looks good! Consider expanding to new areas or deepening current relationships.`);
+    }
+    
+    return `📊 CRM Recommendations${context}:\n\n${recommendations.slice(0, 3).map((r, i) => `${i+1}. ${r}`).join('\n')}\n\nOverall Status: ${dist.current} current clients, ${dist.inprogress + dist.replied} in pipeline, ${dist.none} untapped potential`;
   }
 }
 
-const aiAssistant = new AIAssistant();
+const enhancedAI = new EnhancedAIAssistant();
 
-// AI Natural Language Search
+// AI Email Generation
+function generateAIEmail(record) {
+  const schoolName = record.School || record.SchoolName || record.Name || 'School';
+  const contactName = record.ContactName || record.contactName || 'Principal';
+  const contactEmail = record.ContactEmail || record.Email || record.email || '';
+  const status = normalizeStatus(record.Status || 'none');
+  const notes = record.Notes || record.notes || '';
+  const daysSince = daysSinceLastContact(record);
+  
+  // Show AI panel and generate email preview
+  document.getElementById('aiPanel').classList.add('active');
+  const chat = document.getElementById('aiChat');
+  
+  // Build context-aware email
+  let emailSubject = '';
+  let emailBody = '';
+  let emailContext = '';
+  
+  if (contactEmail) {
+    emailContext = `📧 Ready to send to: ${contactEmail}`;
+  } else {
+    emailContext = `⚠️ No contact email on file - add one in the popup first`;
+  }
+  
+  switch(status) {
+    case 'none':
+      emailSubject = `Science Programming Opportunity for ${schoolName}`;
+      emailBody = `Dear ${contactName},
+
+I hope this email finds you well. I'm reaching out to introduce our Mad Science educational programs that bring hands-on science learning directly to students at ${schoolName}.
+
+Our interactive workshops align with curriculum standards while making science fun and accessible for all students. We specialize in creating memorable experiences that spark curiosity and deepen understanding of STEM concepts.
+
+Programs we offer include:
+• In-class science workshops
+• School-wide science assemblies  
+• After-school programs
+• Professional development for teachers
+
+I'd love to discuss how we can support ${schoolName}'s science education goals. Could we schedule a brief call this week to explore what would work best for your students?
+
+Best regards,
+[Your Name]
+Mad Science Franchise`;
+      break;
+      
+    case 'firstoutreach':
+      emailSubject = `Following up - Science Programs for ${schoolName}`;
+      emailBody = `Dear ${contactName},
+
+I wanted to follow up on my previous message about Mad Science programming for ${schoolName}. ${daysSince ? `It's been ${daysSince} days since I first reached out, a` : 'A'}nd I'm still excited about the possibility of bringing engaging science education to your students.
+
+${notes ? `Based on our previous discussion: "${notes.split('\n')[0]}"` : 'I understand how busy the school year can be'}, which is why our programs are designed to be turnkey solutions that enhance your curriculum without adding to your workload.
+
+Many schools in your area have seen fantastic results with our hands-on approach to science learning. Students consistently report higher engagement and improved understanding of STEM concepts.
+
+Would a brief 15-minute call work to discuss how we could customize a program for ${schoolName}? I'm available at your convenience.
+
+Best regards,
+[Your Name]
+Mad Science Franchise`;
+      break;
+      
+    case 'replied':
+      emailSubject = `Next steps for ${schoolName} Science Programming`;
+      emailBody = `Dear ${contactName},
+
+Thank you for your response! I'm excited about the opportunity to work with ${schoolName}.
+
+${notes ? `As we discussed: "${notes.split('\n').pop()}"` : 'Based on your interest in our programming'}, I'd like to provide more specific details about how our programs would work for your students.
+
+Next steps I'd suggest:
+• Schedule a brief call to discuss your specific needs and timeline
+• Share program details and pricing tailored to your requirements
+• Arrange a demonstration if helpful
+
+I can work around your schedule - would mornings or afternoons work better for a quick call this week?
+
+Looking forward to partnering with ${schoolName}!
+
+Best regards,
+[Your Name]
+Mad Science Franchise`;
+      break;
+      
+    case 'inprogress':
+      emailSubject = `Moving forward with ${schoolName} - Let's finalize details`;
+      emailBody = `Dear ${contactName},
+
+I hope you're well! ${daysSince ? `It's been ${daysSince} days since we last connected` : 'Following up on our conversation'}, and I wanted to check in on the science programming proposal for ${schoolName}.
+
+${notes ? `From our last discussion: "${notes.split('\n').pop()}"` : 'I know you were considering the timing and logistics'}
+
+To move forward, I just need:
+• Confirmation of preferred program dates
+• Final headcount for planning purposes  
+• Any specific curriculum connections you'd like emphasized
+
+Many schools find it helpful to start with a smaller pilot program to see the student response. We could begin with one grade level and expand from there.
+
+When would be a good time for a brief call to finalize the details? I'm excited to bring this engaging science programming to your students!
+
+Best regards,
+[Your Name]
+Mad Science Franchise`;
+      break;
+      
+    case 'current':
+      emailSubject = `Checking in - ${schoolName} Science Programs`;
+      emailBody = `Dear ${contactName},
+
+I hope the science programming at ${schoolName} has been going well! ${daysSince ? `It's been ${daysSince} days since our last update` : 'I wanted to check in'} and see how everything is progressing.
+
+${notes ? `Last time we spoke: "${notes.split('\n').pop()}"` : 'I\'d love to hear how the students are responding to the programs'}
+
+A few things I wanted to touch base about:
+• How are the students responding to the current programming?
+• Any feedback from teachers or parents?
+• Interest in additional programs or expansion for next term?
+
+Many schools find value in building on successful programs with advanced workshops or different grade levels. I'd love to discuss what additional opportunities might benefit ${schoolName}.
+
+Would you have 10 minutes for a quick call this week? I always enjoy hearing about the students' experiences and exploring ways to enhance the programming.
+
+Best regards,
+[Your Name]
+Mad Science Franchise`;
+      break;
+      
+    default:
+      emailSubject = `Science Programming for ${schoolName}`;
+      emailBody = `Dear ${contactName},
+
+I hope this email finds you well. I wanted to reach out about science programming opportunities for ${schoolName}.
+
+Best regards,
+[Your Name]
+Mad Science Franchise`;
+  }
+  
+  chat.innerHTML += `
+    <div class="ai-message user">Generate email for ${schoolName}</div>
+    <div class="ai-message assistant">
+      🤖 <strong>AI Email Generator</strong><br><br>
+      
+      <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+        <strong>📋 Contact Context:</strong><br>
+        • School: ${schoolName}<br>
+        • Contact: ${contactName}<br>
+        • Status: ${status.charAt(0).toUpperCase() + status.slice(1).replace(/([A-Z])/g, ' $1')}<br>
+        • Last Activity: ${daysSince ? `${daysSince} days ago` : 'Never contacted'}<br>
+        ${emailContext}<br><br>
+        
+        <strong>📧 Suggested Email:</strong><br><br>
+        <div style="background: white; padding: 12px; border-left: 4px solid #6a1b9a; font-family: monospace; font-size: 12px;">
+          <strong>To:</strong> ${contactEmail || '[Add contact email first]'}<br>
+          <strong>Subject:</strong> ${emailSubject}<br><br>
+          
+          ${emailBody.split('\n').join('<br>')}
+        </div>
+      </div>
+      
+      <small>💡 <strong>Tips:</strong> This email is customized based on current status and activity. Edit contact info in the popup to improve personalization. Phase 2 will add one-click sending!</small>
+    </div>
+  `;
+  
+  chat.scrollTop = chat.scrollHeight;
+}
+
+// Natural Language Search
 function performAISearch(query) {
   const lowerQuery = query.toLowerCase();
   const results = [];
@@ -1051,12 +1946,16 @@ function performAISearch(query) {
     const address = (rec.Address || '').toLowerCase();
     const group = (rec.Group || '').toLowerCase();
     const notes = (rec.Notes || '').toLowerCase();
+    const contactName = (rec.ContactName || rec.contactName || '').toLowerCase();
+    const contactEmail = (rec.ContactEmail || rec.Email || rec.email || '').toLowerCase();
     
     // Check for exact matches
     if (name.includes(lowerQuery)) score += 10;
     if (address.includes(lowerQuery)) score += 5;
     if (group.includes(lowerQuery)) score += 3;
     if (notes.includes(lowerQuery)) score += 4;
+    if (contactName.includes(lowerQuery)) score += 6;
+    if (contactEmail.includes(lowerQuery)) score += 6;
     
     // Check for individual words
     const words = lowerQuery.split(' ');
@@ -1065,20 +1964,32 @@ function performAISearch(query) {
         if (name.includes(word)) score += 2;
         if (address.includes(word)) score += 1;
         if (notes.includes(word)) score += 1;
+        if (contactName.includes(word)) score += 2;
       }
     });
     
-    // Status-based queries
-    if (lowerQuery.includes('uncontacted') && normalizeStatus(rec.Status) === 'none') score += 8;
-    if (lowerQuery.includes('recent') && normalizeStatus(rec.Status) === 'recent') score += 8;
-    if (lowerQuery.includes('in progress') && normalizeStatus(rec.Status) === 'inprogress') score += 8;
-    if (lowerQuery.includes('current') && normalizeStatus(rec.Status) === 'current') score += 8;
-    if (lowerQuery.includes('staff') && normalizeStatus(rec.Status) === 'staff') score += 8;
+    // Enhanced status-based queries
+    const status = normalizeStatus(rec.Status);
+    if (lowerQuery.includes('uncontacted') && status === 'none') score += 8;
+    if (lowerQuery.includes('first outreach') && status === 'firstoutreach') score += 8;
+    if (lowerQuery.includes('replied') && status === 'replied') score += 8;
+    if (lowerQuery.includes('in progress') && status === 'inprogress') score += 8;
+    if (lowerQuery.includes('current') && status === 'current') score += 8;
+    if (lowerQuery.includes('uninterested') && status === 'uninterested') score += 8;
+    if (lowerQuery.includes('staff') && status === 'staff') score += 8;
     
-    // Notes-specific queries
+    // CRM-specific queries
+    if (lowerQuery.includes('with contact') && contactName.length > 0) score += 6;
+    if (lowerQuery.includes('with email') && contactEmail.length > 0) score += 6;
     if (lowerQuery.includes('with notes') && notes.length > 0) score += 6;
-    if (lowerQuery.includes('email') && notes.includes('email')) score += 5;
-    if (lowerQuery.includes('contacted') && notes.length > 0) score += 4;
+    if (lowerQuery.includes('stale')) {
+      const daysSince = daysSinceLastContact(rec);
+      if (daysSince !== null && daysSince > 14) score += 8;
+    }
+    if (lowerQuery.includes('recent activity')) {
+      const daysSince = daysSinceLastContact(rec);
+      if (daysSince !== null && daysSince <= 7) score += 8;
+    }
     
     if (score > 0) {
       results.push({rec, score});
@@ -1087,222 +1998,6 @@ function performAISearch(query) {
   
   results.sort((a,b) => b.score - a.score);
   return results.slice(0, 10).map(r => r.rec);
-}
-
-// Territory Insights
-function updateTerritoryInsights() {
-  // Highlight the insights panel briefly to show it updated
-  const panel = document.getElementById('insightsPanel');
-  const header = document.getElementById('insightsHeader');
-  panel.classList.add('highlighted');
-  header.classList.add('has-update');
-  setTimeout(() => {
-    panel.classList.remove('highlighted');
-    header.classList.remove('has-update');
-  }, 1500);
-  
-  // Get selected groups
-  const groupSel = document.getElementById('groupSel');
-  const selectedGroups = Array.from(groupSel.selectedOptions).map(o => o.value);
-  const hasGroupFilter = selectedGroups.length > 0;
-  
-  if (!currentTerritory && !hasGroupFilter) {
-    document.getElementById('territoryStats').innerHTML = '<div class="muted">Select a territory or group to see insights</div>';
-    document.getElementById('aiRecommendations').innerHTML = '<div class="muted">Insights will appear here</div>';
-    return;
-  }
-  
-  // Filter markers based on current filters (territory + groups + status)
-  // EXCLUDE STAFF from metrics
-  const visible = markers.filter(m => {
-    const st = normalizeStatus(m._rec.Status || m._rec.status);
-    if (st === 'staff') return false; // Exclude staff from insights
-    
-    // Use the full filter predicate to respect all current filters
-    if (currentTerritory) {
-      return territoryVisible(m._rec);
-    } else {
-      return baseVisiblePredicate(m._rec) && st !== 'staff';
-    }
-  });
-  
-  // Also count staff separately
-  const staffCount = markers.filter(m => {
-    const st = normalizeStatus(m._rec.Status || m._rec.status);
-    if (st !== 'staff') return false;
-    if (currentTerritory) {
-      return territoryVisible(m._rec);
-    } else {
-      return baseVisiblePredicate(m._rec);
-    }
-  }).length;
-  
-  const statusCounts = {none:0, recent:0, inprogress:0, current:0};
-  const groupCounts = {};
-  
-  visible.forEach(m => {
-    const st = normalizeStatus(m._rec.Status || m._rec.status);
-    if (st !== 'staff') { // Double-check staff exclusion
-      statusCounts[st]++;
-    }
-    
-    const group = (m._rec.Group || m._rec.group || 'No Group').trim();
-    groupCounts[group] = (groupCounts[group] || 0) + 1;
-  });
-  
-  const total = visible.length; // Already excludes staff
-  const coverage = total > 0 ? Math.round(statusCounts.current / total * 100) : 0;
-  const inProgressRate = total > 0 ? Math.round(statusCounts.inprogress / total * 100) : 0;
-  
-  // Build context label
-  let contextLabel = '';
-  if (currentTerritory && hasGroupFilter) {
-    contextLabel = `<div style="font-weight:600; color:#6a1b9a; margin-bottom:8px;">
-      ${currentTerritory.name} - ${selectedGroups.join(', ')}
-    </div>`;
-  } else if (currentTerritory) {
-    contextLabel = `<div style="font-weight:600; color:#6a1b9a; margin-bottom:8px;">
-      ${currentTerritory.name} - All Groups
-    </div>`;
-  } else if (hasGroupFilter) {
-    contextLabel = `<div style="font-weight:600; color:#6a1b9a; margin-bottom:8px;">
-      All Territories - ${selectedGroups.join(', ')}
-    </div>`;
-  }
-  
-  // Update stats display
-  document.getElementById('territoryStats').innerHTML = `
-    ${contextLabel}
-    <div class="ai-stat"><span>Total Locations (excl. staff):</span><strong>${total}</strong></div>
-    <div class="ai-stat"><span>Coverage Rate:</span><strong>${coverage}%</strong></div>
-    <div class="ai-stat"><span>In Progress Rate:</span><strong>${inProgressRate}%</strong></div>
-    <div style="margin-top:8px; padding-top:8px; border-top:1px solid #e0e0e0;">
-      <div class="ai-stat"><span>Uncontacted:</span><strong>${statusCounts.none}</strong></div>
-      <div class="ai-stat"><span>Recent:</span><strong>${statusCounts.recent}</strong></div>
-      <div class="ai-stat"><span>In Progress:</span><strong>${statusCounts.inprogress}</strong></div>
-      <div class="ai-stat"><span>Current Clients:</span><strong>${statusCounts.current}</strong></div>
-      <div class="ai-stat" style="opacity:0.6;"><span>Staff (excluded):</span><strong>${staffCount}</strong></div>
-    </div>
-    ${hasGroupFilter && Object.keys(groupCounts).length > 0 ? 
-      `<div style="margin-top:8px; padding-top:8px; border-top:1px solid #e0e0e0;">
-        <strong>Group Breakdown:</strong><br>
-        ${Object.entries(groupCounts).map(([g,c]) => 
-          `<div class="ai-stat"><span>${g}:</span><strong>${c}</strong></div>`
-        ).join('')}
-      </div>` : ''}
-  `;
-  
-  // Generate AI recommendations based on context (excluding staff)
-  let recommendations = [];
-  
-  if (total === 0) {
-    recommendations.push(`No non-staff schools found. Try adjusting your filters.`);
-  } else {
-    if (statusCounts.inprogress > 0) {
-      const pct = Math.round(statusCounts.inprogress / total * 100);
-      recommendations.push(`${statusCounts.inprogress} schools in progress (${pct}%) - focus on closing`);
-    }
-    if (statusCounts.none > total * 0.4) {
-      recommendations.push(`High opportunity: ${statusCounts.none} uncontacted schools${hasGroupFilter ? ' in selected group(s)' : ''}`);
-    }
-    if (statusCounts.recent > 5) {
-      recommendations.push(`Move ${statusCounts.recent} recent contacts to "In Progress"`);
-    }
-    if (coverage < 30) {
-      recommendations.push(`Low coverage (${coverage}%) - prioritize for growth`);
-    } else if (coverage > 70) {
-      recommendations.push(`Strong coverage (${coverage}%) - focus on retention`);
-    }
-    
-    // Group-specific recommendations
-    if (hasGroupFilter && selectedGroups.length === 1) {
-      const groupName = selectedGroups[0];
-      if (statusCounts.none > 0) {
-        recommendations.push(`Target ${statusCounts.none} uncontacted ${groupName} schools`);
-      }
-      if (statusCounts.inprogress > statusCounts.current) {
-        recommendations.push(`Good pipeline: More schools in progress than current`);
-      }
-    }
-    
-    if (recommendations.length === 0) {
-      recommendations.push(`Balanced ${hasGroupFilter ? 'group' : 'territory'} - maintain current strategy`);
-    }
-  }
-  
-  document.getElementById('aiRecommendations').innerHTML = recommendations
-    .map(r => `<div class="ai-recommendation">${r}</div>`)
-    .join('');
-}
-
-// Generate AI Report
-async function generateAIReport() {
-  const report = [];
-  report.push(`📊 **Territory Analysis Report**`);
-  report.push(`Generated: ${new Date().toLocaleDateString()}\n`);
-  
-  // Overall statistics (excluding staff)
-  const nonStaffData = DATA.filter(r => normalizeStatus(r.Status || r.status) !== 'staff');
-  const staffData = DATA.filter(r => normalizeStatus(r.Status || r.status) === 'staff');
-  
-  report.push(`**Overall Statistics:**`);
-  report.push(`• Total Locations: ${nonStaffData.length} (+ ${staffData.length} staff excluded)`);
-  report.push(`• Active Territories: ${TERRITORIES.length}`);
-  
-  // Count schools with notes
-  const withNotes = nonStaffData.filter(r => (r.Notes || r.notes || '').trim().length > 0).length;
-  report.push(`• Locations with notes: ${withNotes} (${Math.round(withNotes/nonStaffData.length*100)}%)`);
-  
-  // Status breakdown (excluding staff)
-  const statusDist = {none:0, recent:0, inprogress:0, current:0};
-  nonStaffData.forEach(r => {
-    const st = normalizeStatus(r.Status || r.status);
-    if (st !== 'staff') statusDist[st]++;
-  });
-  
-  report.push(`\n**Status Distribution (excluding staff):**`);
-  report.push(`• Uncontacted: ${statusDist.none} (${Math.round(statusDist.none/nonStaffData.length*100)}%)`);
-  report.push(`• Recent: ${statusDist.recent} (${Math.round(statusDist.recent/nonStaffData.length*100)}%)`);
-  report.push(`• In Progress: ${statusDist.inprogress} (${Math.round(statusDist.inprogress/nonStaffData.length*100)}%)`);
-  report.push(`• Current Clients: ${statusDist.current} (${Math.round(statusDist.current/nonStaffData.length*100)}%)`);
-  
-  // Coverage rate
-  const coverageRate = Math.round(statusDist.current / nonStaffData.length * 100);
-  report.push(`\n**Coverage Rate: ${coverageRate}%**`);
-  
-  // Territory analysis
-  report.push(`\n**Top Territories by Location Count:**`);
-  const territoryData = [];
-  TERRITORIES.forEach(t => {
-    const count = nonStaffData.filter(r => {
-      if (!Number.isFinite(r.lat) || !Number.isFinite(r.lon)) return false;
-      return pointInGeometry(r.lon, r.lat, t.geometry);
-    }).length;
-    territoryData.push({name: t.name, count});
-  });
-  territoryData.sort((a,b) => b.count - a.count);
-  territoryData.slice(0,5).forEach(t => {
-    report.push(`• ${t.name}: ${t.count} locations`);
-  });
-  
-  // Recommendations
-  report.push(`\n**Strategic Recommendations:**`);
-  if (statusDist.inprogress > nonStaffData.length * 0.1) {
-    report.push(`• Strong pipeline: ${statusDist.inprogress} locations in progress - focus on closing`);
-  }
-  if (statusDist.none > nonStaffData.length * 0.3) {
-    report.push(`• High growth opportunity with ${statusDist.none} uncontacted locations`);
-  }
-  if (statusDist.recent > nonStaffData.length * 0.15) {
-    report.push(`• Move ${statusDist.recent} recent contacts to "In Progress"`);
-  }
-  if (withNotes < nonStaffData.length * 0.3) {
-    report.push(`• Improve documentation: Only ${Math.round(withNotes/nonStaffData.length*100)}% of locations have notes`);
-  }
-  report.push(`• Focus on territories with highest uncontacted density`);
-  report.push(`• Implement cluster-based outreach for efficiency`);
-  
-  return report.join('\n');
 }
 
 /* Init */
@@ -1336,26 +2031,49 @@ async function init(){
     }
   }
   
-  // Initialize insights (will show "select territory" message initially)
-  updateTerritoryInsights();
+  // Initialize insights with a delay to ensure everything is loaded
+  setTimeout(() => {
+    updateInsights();
+    log('Insights initialized');
+  }, 200);
   
-  log('init ← done');
+  log('init ← CRM system ready');
 }
 
-/* Wire UI */
+/* Enhanced UI Event Handlers */
 document.addEventListener('DOMContentLoaded',()=>{
   init().catch(e=>{console.error(e); showToast('Data load error: '+e.message, 'error'); log('ERR '+e.message)});
 
-  // Original event listeners
+  // Territory and filtering
   document.getElementById('territorySel').addEventListener('change', onTerritoryChange);
   document.getElementById('groupSel').addEventListener('change', updateFilter);
-  document.querySelectorAll('.statusChk').forEach(cb=>cb.addEventListener('change', updateFilter));
-  document.getElementById('showStaffChk').addEventListener('change', updateFilter);
+  document.querySelectorAll('.statusChk').forEach(cb=>{
+    cb.addEventListener('change', updateFilter);
+    // Add visual feedback for checked state
+    cb.addEventListener('change', function() {
+      const item = this.closest('.status-filter-item');
+      if (this.checked) {
+        item.classList.add('checked');
+      } else {
+        item.classList.remove('checked');
+      }
+    });
+    // Initialize checked state
+    if (cb.checked) {
+      cb.closest('.status-filter-item').classList.add('checked');
+    }
+  });
+  document.getElementById('showStaffToggle').addEventListener('change', updateFilter);
+  document.getElementById('showStaleToggle').addEventListener('change', updateFilter);
   document.getElementById('btnSearch').addEventListener('click', updateFilter);
   document.getElementById('btnClearSearch').addEventListener('click',()=>{document.getElementById('searchBox').value=''; updateFilter()});
   document.getElementById('searchBox').addEventListener('keydown',e=>{if(e.key==='Enter') updateFilter()});
-  document.getElementById('btnZoomFirst').addEventListener('click',()=>{const first=markers.find(m=>map.hasLayer(m)); if(first) map.setView(first.getLatLng(),14)});
+  document.getElementById('btnZoomFirst').addEventListener('click',()=>{
+    const first=markers.find(m=> m && map.hasLayer(m)); 
+    if(first) map.setView(first.getLatLng(),14);
+  });
 
+  // List view
   document.getElementById('btnToggleList').addEventListener('click',()=>{
     LIST_ON=!LIST_ON;
     document.getElementById('listContainer').style.display=LIST_ON?'block':'none';
@@ -1374,21 +2092,21 @@ document.addEventListener('DOMContentLoaded',()=>{
     updateFilter();
   });
 
-  // CSV downloads
+  // CSV downloads with CRM fields
   document.getElementById('btnDownloadAll').addEventListener('click', ()=>{
     const csv = toCSV(DATA, HEADER);
     const d   = new Date().toISOString().slice(0,10);
-    download(`territory-data-all-${d}.csv`, csv);
+    download(`crm-data-all-${d}.csv`, csv);
   });
 
   document.getElementById('btnDownloadFiltered').addEventListener('click', ()=>{
     const filtered = DATA.filter(r => visiblePredicate(r));
     const csv = toCSV(filtered, HEADER);
     const d   = new Date().toISOString().slice(0,10);
-    download(`territory-data-filtered-${d}.csv`, csv);
+    download(`crm-data-filtered-${d}.csv`, csv);
   });
 
-  // Tab switching (only for 2 tabs now)
+  // Tab switching
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -1407,7 +2125,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     btn.textContent = isCollapsed ? 'Collapse' : 'Expand';
   });
 
-  // AI Panel controls
+  // Enhanced AI Panel controls
   document.getElementById('btnToggleAI').addEventListener('click', () => {
     document.getElementById('aiPanel').classList.toggle('active');
   });
@@ -1420,7 +2138,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById('aiPanel').classList.remove('active');
   });
 
-  // AI Chat
+  // Enhanced AI Chat with CRM context
   const sendAIMessage = async () => {
     const input = document.getElementById('aiInput');
     const query = input.value.trim();
@@ -1430,7 +2148,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     chat.innerHTML += `<div class="ai-message user">${query}</div>`;
     input.value = '';
     
-    const response = await aiAssistant.processQuery(query);
+    const response = await enhancedAI.processQuery(query);
     chat.innerHTML += `<div class="ai-message assistant">${response}</div>`;
     chat.scrollTop = chat.scrollHeight;
   };
@@ -1440,7 +2158,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     if (e.key === 'Enter') sendAIMessage();
   });
 
-  // AI Search (Advanced keyword search)
+  // Enhanced AI Search
   document.getElementById('btnAISearch').addEventListener('click', () => {
     const query = document.getElementById('aiSearchBox').value.trim();
     if (!query) return;
@@ -1461,12 +2179,16 @@ document.addEventListener('DOMContentLoaded',()=>{
     
     showToast(`Found ${results.length} results for "${query}"`);
     
-    // Zoom to first result
-    const first = markers.find(m => results.includes(m._rec));
+    // Zoom to first result - Fix: Use proper marker finding
+    const first = markers.find(m => {
+      if (!m || !m._rec) return false;
+      const recId = m._rec.Id || `${m._rec.School}_${m._rec.Address}`;
+      return resultIds.has(recId);
+    });
     if (first) map.setView(first.getLatLng(), 12);
   });
 
-  // AI Analysis buttons
+  // Enhanced AI Analysis buttons
   document.getElementById('btnAnalyzeTerritory').addEventListener('click', () => {
     const groupSel = document.getElementById('groupSel');
     const hasGroups = groupSel.selectedOptions.length > 0;
@@ -1476,22 +2198,27 @@ document.addEventListener('DOMContentLoaded',()=>{
       return;
     }
     
-    // Just update insights and highlight the panel
-    updateTerritoryInsights();
-    showToast('Analysis complete - check Live Insights panel');
+    updateInsights();
+    showToast('CRM Analysis complete - check Insights panel');
   });
 
   document.getElementById('btnPredictGrowth').addEventListener('click', () => {
     const visible = markers.filter(m => {
       const st = normalizeStatus(m._rec.Status || m._rec.status);
-      if (st === 'staff') return false; // Exclude staff from predictions
+      if (st === 'staff') return false;
       if (currentTerritory) return territoryVisible(m._rec);
       return baseVisiblePredicate(m._rec) && st !== 'staff';
     });
-    const noneCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'none').length;
-    const inProgressCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'inprogress').length;
-    const recentCount = visible.filter(m => normalizeStatus(m._rec.Status) === 'recent').length;
-    const growthPotential = visible.length > 0 ? Math.round((noneCount + recentCount) / visible.length * 100) : 0;
+    
+    const statusDist = {none:0, firstoutreach:0, replied:0, inprogress:0, current:0, uninterested:0};
+    visible.forEach(m => {
+      const st = normalizeStatus(m._rec.Status);
+      statusDist[st]++;
+    });
+    
+    const totalPipeline = statusDist.inprogress + statusDist.replied;
+    const totalUncontacted = statusDist.none + statusDist.firstoutreach;
+    const growthPotential = visible.length > 0 ? Math.round(totalUncontacted / visible.length * 100) : 0;
     
     // Build context
     const groupSel = document.getElementById('groupSel');
@@ -1504,23 +2231,36 @@ document.addEventListener('DOMContentLoaded',()=>{
       context += ` in ${currentTerritory.name}`;
     }
     
-    const prediction = `📈 Growth Prediction${context}:
+    const prediction = `📈 Enhanced CRM Growth Prediction${context}:
 
-Current Pipeline (excluding staff):
-• ${inProgressCount} locations in progress (likely to close)
-• ${recentCount} recent contacts (warm leads)
-• ${noneCount} uncontacted locations (cold prospects)
+Current Pipeline Analysis (excluding staff):
+• Active Pipeline: ${totalPipeline} locations
+  - In Progress: ${statusDist.inprogress} (likely to close: ${Math.round(statusDist.inprogress * 0.7)})
+  - Customer Replied: ${statusDist.replied} (potential: ${Math.round(statusDist.replied * 0.4)})
+  
+• Growth Potential: ${totalUncontacted} locations (${growthPotential}%)
+  - First Outreach: ${statusDist.firstoutreach} (warm leads)
+  - Uncontacted: ${statusDist.none} (cold prospects)
 
-Growth potential: ${growthPotential}% (${noneCount + recentCount} convertible locations)
+• Current Clients: ${statusDist.current} (retention focus)
 
-Projected outcomes:
-• Short-term (In Progress → Current): ${Math.round(inProgressCount * 0.7)} likely conversions
-• Medium-term (Recent → Current): ${Math.round(recentCount * 0.4)} potential conversions
-• Long-term (None → Current): ${Math.round(noneCount * 0.2)} new acquisitions
+Projected 90-Day Outcomes:
+• Probable Conversions: ${Math.round(statusDist.inprogress * 0.7 + statusDist.replied * 0.4)} new clients
+• Potential Additional: ${Math.round(statusDist.firstoutreach * 0.3 + statusDist.none * 0.15)} with focused effort
+• Total Projected Growth: ${Math.round(statusDist.inprogress * 0.7 + statusDist.replied * 0.4 + statusDist.firstoutreach * 0.3 + statusDist.none * 0.15)} new clients
 
-Total projected growth: ${Math.round(inProgressCount * 0.7 + recentCount * 0.4 + noneCount * 0.2)} new clients
+Strategic Recommendation: ${
+  totalPipeline > 10 ? 'Focus on closing active pipeline first' : 
+  statusDist.firstoutreach > 5 ? 'Nurture warm leads from first outreach' :
+  growthPotential > 40 ? 'High growth territory - increase outreach intensity' : 
+  growthPotential > 20 ? 'Moderate opportunity - systematic outreach program' : 
+  'Mature territory - focus on retention and referrals'
+}
 
-Recommended focus: ${inProgressCount > 5 ? 'Close in-progress deals first' : growthPotential > 40 ? 'High growth territory - increase outreach' : growthPotential > 20 ? 'Moderate opportunity - nurture warm leads' : 'Maintenance mode - focus on retention'}`;
+Next Actions:
+1. ${totalPipeline > 0 ? `Follow up on ${totalPipeline} active pipeline opportunities` : 'Build pipeline with targeted outreach'}
+2. ${statusDist.none > 5 ? `Launch outreach campaign for ${statusDist.none} uncontacted schools` : 'Maintain current contact schedule'}
+3. ${statusDist.current > 0 ? `Retention strategy for ${statusDist.current} current clients` : 'Focus on initial client acquisition'}`;
     
     // Show in AI chat
     document.getElementById('aiPanel').classList.add('active');
@@ -1530,20 +2270,91 @@ Recommended focus: ${inProgressCount > 5 ? 'Close in-progress deals first' : gro
   });
 
   document.getElementById('btnGenerateReport').addEventListener('click', async () => {
-    const report = await generateAIReport();
+    const report = [];
+    report.push(`📊 **CRM Territory Analysis Report**`);
+    report.push(`Generated: ${new Date().toLocaleDateString()}\n`);
+    
+    // Enhanced statistics with CRM data
+    const businessData = DATA.filter(r => normalizeStatus(r.Status || r.status) !== 'staff');
+    const staffData = DATA.filter(r => normalizeStatus(r.Status || r.status) === 'staff');
+    
+    report.push(`**Overall CRM Statistics:**`);
+    report.push(`• Total Business Locations: ${businessData.length} (+ ${staffData.length} staff excluded)`);
+    report.push(`• Active Territories: ${TERRITORIES.length}`);
+    
+    // Enhanced data quality metrics
+    const withContactName = businessData.filter(r => (r.ContactName || r.contactName || '').trim().length > 0).length;
+    const withContactEmail = businessData.filter(r => (r.ContactEmail || r.Email || r.email || '').trim().length > 0).length;
+    const withNotes = businessData.filter(r => (r.Notes || r.notes || '').trim().length > 0).length;
+    const withLastModified = businessData.filter(r => (r.LastModified || r.lastModified || '').trim().length > 0).length;
+    
+    report.push(`\n**CRM Data Quality:**`);
+    report.push(`• Contact Names: ${withContactName}/${businessData.length} (${Math.round(withContactName/businessData.length*100)}%)`);
+    report.push(`• Contact Emails: ${withContactEmail}/${businessData.length} (${Math.round(withContactEmail/businessData.length*100)}%)`);
+    report.push(`• Locations with Notes: ${withNotes}/${businessData.length} (${Math.round(withNotes/businessData.length*100)}%)`);
+    report.push(`• Activity Tracking: ${withLastModified}/${businessData.length} (${Math.round(withLastModified/businessData.length*100)}%)`);
+    
+    // Enhanced status breakdown
+    const statusDist = {none:0, firstoutreach:0, replied:0, inprogress:0, current:0, uninterested:0};
+    businessData.forEach(r => {
+      const st = normalizeStatus(r.Status || r.status);
+      statusDist[st]++;
+    });
+    
+    report.push(`\n**CRM Pipeline Status:**`);
+    report.push(`• Uncontacted: ${statusDist.none} (${Math.round(statusDist.none/businessData.length*100)}%)`);
+    report.push(`• First Outreach: ${statusDist.firstoutreach} (${Math.round(statusDist.firstoutreach/businessData.length*100)}%)`);
+    report.push(`• Customer Replied: ${statusDist.replied} (${Math.round(statusDist.replied/businessData.length*100)}%)`);
+    report.push(`• In Progress: ${statusDist.inprogress} (${Math.round(statusDist.inprogress/businessData.length*100)}%)`);
+    report.push(`• Current Clients: ${statusDist.current} (${Math.round(statusDist.current/businessData.length*100)}%)`);
+    report.push(`• Uninterested: ${statusDist.uninterested} (${Math.round(statusDist.uninterested/businessData.length*100)}%)`);
+    
+    // Conversion metrics
+    const conversionRate = Math.round(statusDist.current / businessData.length * 100);
+    const pipelineRate = Math.round((statusDist.inprogress + statusDist.replied) / businessData.length * 100);
+    report.push(`\n**Conversion Metrics:**`);
+    report.push(`• Overall Conversion Rate: ${conversionRate}%`);
+    report.push(`• Active Pipeline Rate: ${pipelineRate}%`);
+    report.push(`• Response Rate: ${Math.round((statusDist.replied + statusDist.inprogress + statusDist.current) / (businessData.length - statusDist.none) * 100)}%`);
+    
+    // Strategic recommendations
+    report.push(`\n**Strategic CRM Recommendations:**`);
+    if (withContactName < businessData.length * 0.5) {
+      report.push(`• HIGH PRIORITY: Improve contact data quality (only ${Math.round(withContactName/businessData.length*100)}% have contact names)`);
+    }
+    if (statusDist.inprogress > businessData.length * 0.1) {
+      report.push(`• SALES FOCUS: Close ${statusDist.inprogress} in-progress opportunities`);
+    }
+    if (statusDist.replied > businessData.length * 0.15) {
+      report.push(`• FOLLOW-UP FOCUS: Nurture ${statusDist.replied} schools that have replied`);
+    }
+    if (statusDist.none > businessData.length * 0.3) {
+      report.push(`• GROWTH OPPORTUNITY: ${statusDist.none} uncontacted schools represent significant expansion potential`);
+    }
+    if (withNotes < businessData.length * 0.4) {
+      report.push(`• DOCUMENTATION: Improve activity tracking - only ${Math.round(withNotes/businessData.length*100)}% have notes`);
+    }
+    
+    report.push(`\n**Next Actions:**`);
+    report.push(`• Implement systematic follow-up schedule based on status`);
+    report.push(`• Focus data collection on missing contact information`);
+    report.push(`• Track activity timing for all customer interactions`);
+    report.push(`• Develop territory-specific strategies based on pipeline density`);
+    
+    const reportText = report.join('\n');
     
     // Create and download report
-    const blob = new Blob([report], { type: 'text/plain;charset=utf-8' });
+    const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `ai-report-${new Date().toISOString().slice(0,10)}.txt`;
+    a.download = `crm-analysis-report-${new Date().toISOString().slice(0,10)}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    showToast('AI Report generated and downloaded');
+    showToast('Enhanced CRM Report generated and downloaded');
   });
 });
 </script>
