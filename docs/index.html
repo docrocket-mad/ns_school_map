@@ -318,6 +318,18 @@
   .ai-message.assistant {
     background:#fff; border:1px solid #e0e0e0;
   }
+  .ai-message.loading {
+    background:#f0f8ff; border:1px solid #4CAF50; 
+    animation: pulse 1.5s ease-in-out infinite alternate;
+    font-style: italic;
+  }
+  .ai-message.error {
+    background:#fff5f5; border:1px solid #f56565; color:#c53030;
+  }
+  @keyframes pulse {
+    0% { opacity: 0.6; }
+    100% { opacity: 1; }
+  }
   
   #aiInputArea {
     padding:10px; border-top:1px solid #e6e6e6;
@@ -650,6 +662,14 @@
 
     <!-- AI Tools Tab -->
     <div id="ai-tools-content" class="tab-content">
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:600; margin-bottom:6px;">⚙️ API Configuration</div>
+        <button onclick="configureClaudeAPI()" type="button" style="width:100%; margin-bottom:4px; background: #9C27B0; color: white;">⚙️ Configure Claude API</button>
+        <button onclick="configureGmailAPI()" type="button" style="width:100%; margin-bottom:4px; background: #4285F4; color: white;">📧 Configure Gmail API</button>
+        <button onclick="setUserProfile()" type="button" style="width:100%; margin-bottom:4px; background: #607D8B; color: white;">👤 Set User Profile</button>
+        <div style="font-size:11px; color:#666; margin-top:4px;">Set up AI and email integration</div>
+      </div>
+
       <div style="margin-bottom:12px;">
         <div style="font-weight:600; margin-bottom:6px;">🤖 AI Assistant</div>
         <button id="btnOpenAI" type="button" style="width:100%;">Open Chat Assistant</button>
@@ -1069,6 +1089,8 @@ function buildPopupHTML(rec){
         <div class="popup-actions">
           <button class="update-btn" data-role="update-record">💾 Save Changes</button>
         </div>
+        
+        ${gmailIntegration.createEmailInterface(rec)}
       ` : `
         <div class="popup-readonly">
           <small>🔒 Read-only mode - Add update key to edit</small>
@@ -1584,12 +1606,126 @@ async function updateRowInSheet({ keyField, keyValue, patch }){
 class EnhancedAIAssistant {
   constructor() {
     this.context = {
+      lastQuery: '',
+      history: [],
+      apiKey: localStorage.getItem('ai_api_key') || '',
       totalSchools: 0,
       territories: [],
       currentTerritory: null,
       statusDistribution: {},
       crmMetrics: {}
     };
+    this.patterns = {
+      conversionRates: new Map(),
+      bestTimes: [],
+      successFactors: []
+    };
+    this.customPrompts = {
+      emailGeneration: localStorage.getItem('ai_email_prompt') || this.getDefaultEmailPrompt(),
+      systemInstructions: localStorage.getItem('ai_system_prompt') || this.getDefaultSystemPrompt()
+    };
+  }
+
+  getDefaultEmailPrompt() {
+    return `Generate a professional email for a Mad Science franchise to a school with this context:
+
+School: {schoolName}
+Contact: {contactName}
+Current Status: {status}
+Days Since Contact: {daysSince}
+Recent Notes: {notes}
+Territory: {territory}
+Group: {group}
+
+Requirements:
+1. Match the tone to the status (introduction for new, follow-up for existing)
+2. Be warm but professional
+3. Include a clear call-to-action
+4. Keep it under 150 words
+5. Reference any relevant details from notes
+6. If status is "replied", acknowledge their response
+7. If stale (>7 days), acknowledge the time gap appropriately
+8. Use proper contact name (not "there")
+9. Avoid placeholder text like [Your Name]
+
+Generate ONLY the email body (no subject line needed).`;
+  }
+
+  getDefaultSystemPrompt() {
+    return `You are an AI assistant helping manage a Mad Science franchise CRM. You specialize in writing professional, personalized outreach emails to schools.
+
+Key guidelines:
+- Always use the actual contact name provided
+- Reference specific details from notes when available
+- Match tone to relationship status (new vs existing contact)
+- Keep emails concise but personal
+- Include clear next steps or call-to-action
+- Never use placeholder text like [Your Name] or "Dear there"`;
+  }
+
+  async initializeAPI() {
+    const apiKey = localStorage.getItem('ai_api_key');
+    if (!apiKey) {
+      const userKey = prompt('Enter your Claude API key to enable AI features:');
+      if (userKey) {
+        localStorage.setItem('ai_api_key', userKey);
+        this.context.apiKey = userKey;
+        return true;
+      }
+      return false;
+    }
+    this.context.apiKey = apiKey;
+    return true;
+  }
+
+  async getAPIEndpoint() {
+    // Try local proxy first, fallback to direct API
+    try {
+      const proxyResponse = await fetch('http://localhost:8080/test', { method: 'HEAD' });
+      return 'http://localhost:8080/v1/messages';
+    } catch {
+      return 'https://api.anthropic.com/v1/messages';
+    }
+  }
+
+  async callClaudeAPI(prompt, systemPrompt = '') {
+    if (!this.context.apiKey) {
+      if (!await this.initializeAPI()) {
+        return 'Please configure your API key to use AI features.';
+      }
+    }
+
+    try {
+      const apiUrl = await this.getAPIEndpoint();
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'x-api-key': this.context.apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 1000,
+          system: systemPrompt || 'You are an AI assistant helping manage a Mad Science franchise CRM. Be concise, actionable, and focused on sales success.',
+          messages: [{
+            role: 'user',
+            content: prompt
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`API Error: ${response.status} - ${error}`);
+      }
+
+      const data = await response.json();
+      return data.content[0].text;
+    } catch (error) {
+      console.error('Claude API error:', error);
+      throw new Error(`Failed to connect to Claude AI: ${error.message}`);
+    }
   }
 
   updateContext() {
@@ -1646,8 +1782,97 @@ class EnhancedAIAssistant {
   }
 
   async processQuery(query) {
+    // Store query
+    this.context.lastQuery = query;
+    this.context.history.push({ type: 'user', text: query });
     this.updateContext();
-    
+
+    // If API key is available, use Claude AI for ALL queries unless they are simple system commands
+    if (this.context.apiKey) {
+      // Build comprehensive context about current CRM state
+      const visible = markers.filter(m => m && m._rec && map.hasLayer(m)).map(m => m._rec);
+      const statusDist = this.context.statusDistribution;
+      
+      // Create rich context data
+      const contextData = {
+        totalSchools: DATA.length,
+        visibleSchools: visible.length,
+        statusDistribution: statusDist,
+        territory: this.context.currentTerritory?.name || 'all territories',
+        recentActivity: this.getRecentActivity(visible),
+        topPriorities: this.getTopPriorities(visible),
+        dataQuality: this.getDataQuality(visible)
+      };
+
+      // Create comprehensive system prompt with CRM context
+      const systemPrompt = `You are Claude, an AI assistant helping manage a Mad Science franchise CRM system. 
+
+Current CRM Context:
+- Total schools in system: ${contextData.totalSchools}
+- Currently viewing: ${contextData.visibleSchools} schools in ${contextData.territory}
+- Status breakdown: ${Object.entries(statusDist).map(([k,v]) => `${k}: ${v}`).join(', ')}
+- Data quality: ${contextData.dataQuality}
+
+Key CRM Data Available:
+- School names, addresses, contact information
+- Status tracking (uncontacted, first outreach, replied, in progress, current clients, uninterested)
+- Notes and activity history
+- Territory and group classifications
+- Email contact capabilities
+
+You can help with:
+- Analyzing sales patterns and conversion rates
+- Suggesting follow-up strategies for specific schools
+- Writing personalized emails for outreach
+- Identifying growth opportunities
+- Territory planning and optimization
+- General business strategy and advice
+- Any questions about the data or CRM functionality
+
+Be conversational, helpful, and provide actionable insights. If asked about specific schools or data, reference the context provided. For email writing requests, ask for the school name if not specified.`;
+
+      const prompt = `${query}
+
+Current Context: ${JSON.stringify(contextData, null, 2)}
+
+Recent conversation history:
+${this.context.history.slice(-5).map(h => `${h.type}: ${h.text}`).join('\n')}`;
+
+      try {
+        const aiResponse = await this.callClaudeAPI(prompt, systemPrompt);
+        return aiResponse;
+      } catch (error) {
+        console.error('Claude API error:', error);
+        return `❌ Claude AI is temporarily unavailable: ${error.message}\n\nFalling back to built-in responses. Please check your API configuration in the AI Tools tab.`;
+      }
+    }
+
+    // Fallback to pattern matching if no API key
+    return this.getBuiltInResponse(query);
+  }
+
+  getRecentActivity(visible) {
+    const withActivity = visible.filter(r => r.LastModified || r.Notes);
+    return `${withActivity.length}/${visible.length} schools have recorded activity`;
+  }
+
+  getTopPriorities(visible) {
+    const inProgress = visible.filter(r => normalizeStatus(r.Status) === 'inprogress').length;
+    const replied = visible.filter(r => normalizeStatus(r.Status) === 'replied').length;
+    return `${inProgress} in progress, ${replied} replied (high priority)`;
+  }
+
+  getDataQuality(visible) {
+    const withEmail = visible.filter(r => r.ContactEmail || r.Email).length;
+    const withContact = visible.filter(r => r.ContactName).length;
+    return `${Math.round(withEmail/visible.length*100)}% have emails, ${Math.round(withContact/visible.length*100)}% have contact names`;
+  }
+
+  getBuiltInResponse(query) {
+    const lowerQuery = query.toLowerCase();
+    const visible = markers.filter(m => m && m._rec && map.hasLayer(m)).map(m => m._rec);
+    const statusDist = this.context.statusDistribution;
+
     // Build context string
     let contextStr = this.context.currentTerritory || 'all territories';
     if (this.context.selectedGroups.length > 0) {
@@ -1655,7 +1880,6 @@ class EnhancedAIAssistant {
     }
     
     // Enhanced pattern matching for CRM queries
-    const lowerQuery = query.toLowerCase();
     
     if (lowerQuery.includes('how many') || lowerQuery.includes('count')) {
       return `There are ${this.context.totalSchools} business locations total (excluding staff). Currently showing ${this.context.visibleSchools} locations in ${contextStr}.`;
@@ -1757,9 +1981,594 @@ class EnhancedAIAssistant {
     
     return `📊 CRM Recommendations${context}:\n\n${recommendations.slice(0, 3).map((r, i) => `${i+1}. ${r}`).join('\n')}\n\nOverall Status: ${dist.current} current clients, ${dist.inprogress + dist.replied} in pipeline, ${dist.none} untapped potential`;
   }
+
+  async generateSmartEmail(school) {
+    const context = this.buildEmailContext(school);
+    const prompt = this.customPrompts.emailGeneration
+      .replace('{schoolName}', context.school)
+      .replace('{contactName}', context.contact)
+      .replace('{status}', context.status)
+      .replace('{daysSince}', context.daysSince || 'Never contacted')
+      .replace('{notes}', context.notes)
+      .replace('{territory}', context.territory)
+      .replace('{group}', context.group);
+
+    const email = await this.callClaudeAPI(prompt, this.customPrompts.systemInstructions);
+    return {
+      subject: this.generateSubjectLine(context),
+      body: email,
+      context: context
+    };
+  }
+
+  buildEmailContext(school) {
+    const schoolName = school.School || school.SchoolName || school.Name || 'School';
+    const contactName = school.ContactName || school.contactName || 'Principal';
+    const status = normalizeStatus(school.Status || 'none');
+    const notes = (school.Notes || school.notes || '').slice(0, 200);
+    const daysSince = daysSinceLastContact(school);
+    const territory = this.context.currentTerritory || 'Unknown';
+    const group = school.Group || school.group || 'None';
+
+    return {
+      school: schoolName,
+      contact: contactName,
+      status: status,
+      notes: notes,
+      daysSince: daysSince,
+      territory: territory,
+      group: group
+    };
+  }
+
+  generateSubjectLine(context) {
+    const lines = {
+      'none': `Science Programs for ${context.school}`,
+      'firstoutreach': `Following up - Science Programs for ${context.school}`,
+      'replied': `Re: Science Programs for ${context.school}`,
+      'inprogress': `Next Steps - ${context.school} Science Programs`,
+      'current': `Program Update for ${context.school}`,
+      'uninterested': `New Science Options for ${context.school}`
+    };
+    return lines[context.status] || `Science Programs for ${context.school}`;
+  }
 }
 
 const enhancedAI = new EnhancedAIAssistant();
+
+/* ===== GMAIL INTEGRATION ===== */
+
+class GmailIntegration {
+  constructor() {
+    this.config = {
+      apiKey: localStorage.getItem('gmail_api_key') || '',
+      clientId: localStorage.getItem('gmail_client_id') || '',
+    };
+    this.gapi = null;
+    this.isSignedIn = false;
+    this.currentUser = null;
+  }
+
+  async initialize() {
+    if (!this.config.apiKey || !this.config.clientId) {
+      console.log('Gmail API not configured');
+      return false;
+    }
+
+    try {
+      // Load Google Identity Services
+      if (!window.google?.accounts) {
+        await this.loadGoogleIdentityServices();
+      }
+
+      // Initialize Google API
+      await this.loadGoogleAPI();
+      
+      // Initialize OAuth
+      this.initializeOAuth();
+      
+      return true;
+    } catch (error) {
+      console.error('Gmail initialization failed:', error);
+      return false;
+    }
+  }
+
+  async loadGoogleIdentityServices() {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  async loadGoogleAPI() {
+    return new Promise((resolve, reject) => {
+      if (window.gapi) {
+        resolve();
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = 'https://apis.google.com/js/api.js';
+      script.onload = () => {
+        window.gapi.load('client', resolve);
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  initializeOAuth() {
+    // Initialize Google Identity Services
+    google.accounts.id.initialize({
+      client_id: this.config.clientId,
+      callback: (response) => {
+        this.handleCredentialResponse(response);
+      }
+    });
+
+    // Check if already signed in
+    const savedToken = localStorage.getItem('gmail_access_token');
+    if (savedToken) {
+      this.handleSignIn(savedToken);
+    }
+  }
+
+  handleCredentialResponse(response) {
+    const credential = response.credential;
+    localStorage.setItem('gmail_credential', credential);
+    
+    // Get access token for Gmail API
+    this.requestAccessToken();
+  }
+
+  async requestAccessToken() {
+    try {
+      const client = google.accounts.oauth2.initTokenClient({
+        client_id: this.config.clientId,
+        scope: 'https://www.googleapis.com/auth/gmail.send',
+        callback: (response) => {
+          if (response.access_token) {
+            localStorage.setItem('gmail_access_token', response.access_token);
+            this.handleSignIn(response.access_token);
+          }
+        },
+      });
+      
+      client.requestAccessToken();
+    } catch (error) {
+      console.error('Access token request failed:', error);
+      showToast('❌ Gmail authorization failed');
+    }
+  }
+
+  handleSignIn(accessToken) {
+    this.isSignedIn = true;
+    this.accessToken = accessToken;
+    
+    // Initialize Gmail API
+    window.gapi.client.init({
+      apiKey: this.config.apiKey,
+      discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest'],
+    }).then(() => {
+      window.gapi.client.setToken({ access_token: accessToken });
+      this.updateGmailStatus();
+      showToast('✅ Gmail connected successfully!');
+    });
+  }
+
+  signOut() {
+    this.isSignedIn = false;
+    this.accessToken = null;
+    localStorage.removeItem('gmail_access_token');
+    localStorage.removeItem('gmail_credential');
+    this.updateGmailStatus();
+    showToast('📤 Signed out of Gmail');
+  }
+
+  updateGmailStatus() {
+    // Update UI to show connection status
+    const statusElements = document.querySelectorAll('.gmail-status');
+    statusElements.forEach(el => {
+      el.textContent = this.isSignedIn ? '✅ Connected' : '❌ Not Connected';
+      el.className = `gmail-status ${this.isSignedIn ? 'connected' : 'disconnected'}`;
+    });
+  }
+
+  configure(apiKey, clientId) {
+    this.config.apiKey = apiKey;
+    this.config.clientId = clientId;
+    localStorage.setItem('gmail_api_key', apiKey);
+    localStorage.setItem('gmail_client_id', clientId);
+    
+    // Reinitialize with new config
+    this.initialize();
+  }
+
+  async sendEmail(to, subject, body, school = null) {
+    if (!this.isSignedIn) {
+      throw new Error('Not signed in to Gmail');
+    }
+
+    try {
+      const userProfile = {
+        name: localStorage.getItem('user_name') || 'Your Name',
+        phone: localStorage.getItem('user_phone') || '',
+        email: localStorage.getItem('user_email') || ''
+      };
+
+      // Build email with signature
+      const signature = `\n\nBest regards,\n${userProfile.name}\nMad Science Franchise${userProfile.phone ? `\nPhone: ${userProfile.phone}` : ''}${userProfile.email ? `\nEmail: ${userProfile.email}` : ''}`;
+      
+      const fullBody = body + signature;
+
+      // Create email message
+      const email = [
+        `To: ${to}`,
+        `Subject: ${subject}`,
+        `Content-Type: text/plain; charset=utf-8`,
+        '',
+        fullBody
+      ].join('\n');
+
+      // Encode email
+      const encodedEmail = btoa(unescape(encodeURIComponent(email)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+
+      // Send via Gmail API
+      const response = await window.gapi.client.gmail.users.messages.send({
+        userId: 'me',
+        resource: {
+          raw: encodedEmail
+        }
+      });
+
+      // Update CRM data
+      if (school) {
+        this.logEmailActivity(school, subject);
+      }
+
+      return { success: true, messageId: response.result.id };
+      
+    } catch (error) {
+      console.error('Email send failed:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  logEmailActivity(school, subject) {
+    const now = new Date().toISOString();
+    
+    // Update school record
+    school.LastEmailSent = now;
+    
+    // Add to notes
+    const emailNote = `📧 ${formatDate(new Date())}: Sent "${subject}"`;
+    school.Notes = school.Notes ? `${school.Notes}\n${emailNote}` : emailNote;
+    
+    // Update status based on current status
+    const currentStatus = normalizeStatus(school.Status);
+    if (currentStatus === 'none') {
+      school.Status = 'First Outreach';
+    }
+    
+    // Update marker color
+    const marker = markers.find(m => m._rec === school);
+    if (marker) {
+      updateMarkerStyle(marker);
+    }
+  }
+
+  async generateEmail(school, templateType) {
+    // Use AI to generate email
+    const aiEmail = await enhancedAI.generateSmartEmail(school);
+    return aiEmail;
+  }
+
+  createEmailInterface(school) {
+    const status = normalizeStatus(school.Status || 'none');
+    const hasEmail = school.ContactEmail || school.Email;
+    
+    if (!hasEmail) {
+      return `<div class="email-section">
+        <div class="section-header">📧 Email Actions</div>
+        <p style="color: #f44336; font-style: italic;">⚠️ Add contact email to enable email features</p>
+      </div>`;
+    }
+
+    const isUncontacted = status === 'none';
+    const isFirstOutreach = status === 'firstoutreach';
+    const hasReplied = ['replied', 'inprogress'].includes(status);
+
+    return `
+      <div class="email-section">
+        <div class="section-header">📧 Email Actions</div>
+        <div class="email-buttons">
+          ${isUncontacted ? 
+            `<button onclick="sendQuickEmail('${school.School}', 'introduction')" class="btn btn-primary">
+               🤖 AI Introduction Email
+             </button>` : ''
+          }
+          
+          ${isFirstOutreach ? 
+            `<button onclick="sendQuickEmail('${school.School}', 'followUp1')" class="btn btn-secondary">
+               🤖 AI Follow-up Email
+             </button>` : ''
+          }
+          
+          ${hasReplied ? 
+            `<button onclick="sendQuickEmail('${school.School}', 'replied')" class="btn btn-success">
+               🤖 AI Response Email
+             </button>` : ''
+          }
+          
+          <button onclick="openEmailComposer('${school.School}')" class="btn btn-outline">
+            ✏️ Custom Email Composer
+          </button>
+        </div>
+        
+        ${school.LastEmailSent ? 
+          `<div class="last-email">
+             Last emailed: ${formatDate(new Date(school.LastEmailSent))}
+           </div>` : ''
+        }
+      </div>
+    `;
+  }
+}
+
+// Initialize Gmail integration
+const gmailIntegration = new GmailIntegration();
+
+// Helper function for date formatting
+function formatDate(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+}
+
+// Helper function to update marker style based on status
+function updateMarkerStyle(marker) {
+  if (marker && marker._rec) {
+    const color = getStatusColor(marker._rec);
+    const icon = L.divIcon({
+      className: 'custom-div-icon',
+      html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6]
+    });
+    marker.setIcon(icon);
+  }
+}
+
+// Helper function to close popup
+function closePopup() {
+  map.closePopup();
+}
+
+// Global functions for Gmail integration
+async function sendQuickEmail(schoolName, templateType) {
+  try {
+    const school = DATA.find(s => s.School === schoolName || s.SchoolName === schoolName);
+    if (!school) {
+      showToast('❌ School not found');
+      return;
+    }
+    
+    if (!school.ContactEmail && !school.Email) {
+      showToast('❌ No email address found for this school');
+      return;
+    }
+    
+    // Open the custom email composer with AI instructions pre-filled
+    openEmailComposer(schoolName);
+    
+    // Add AI instructions based on template type
+    setTimeout(() => {
+      const instructionsTextarea = document.querySelector('[data-ai-instructions="true"]');
+      if (instructionsTextarea) {
+        let instructions = '';
+        switch (templateType) {
+          case 'introduction':
+            instructions = 'Write a professional introduction email for Mad Science programs. This is our first contact with this school.';
+            break;
+          case 'followUp1':
+            instructions = 'Write a friendly follow-up email. We previously sent them information about Mad Science programs but haven\'t heard back.';
+            break;
+          case 'replied':
+            instructions = 'Write a response email. This school has replied to our previous outreach and shown interest.';
+            break;
+          default:
+            instructions = 'Write a professional email about Mad Science programs for this school.';
+        }
+        instructionsTextarea.value = instructions;
+        
+        // Show the AI instructions section
+        const aiSection = instructionsTextarea.closest('.ai-instructions-section');
+        if (aiSection && aiSection.style.display === 'none') {
+          const toggleBtn = document.querySelector('[onclick*="toggleAIInstructions"]');
+          if (toggleBtn) toggleBtn.click();
+        }
+      }
+      showToast('✅ AI instructions pre-filled - customize and generate your email!');
+    }, 100);
+    
+  } catch (error) {
+    console.error('Quick email failed:', error);
+    showToast(`❌ Error opening composer: ${error.message || 'Unknown error'}`);
+  }
+}
+
+function openEmailComposer(schoolName) {
+  const school = DATA.find(s => s.School === schoolName || s.SchoolName === schoolName);
+  if (!school) return;
+  
+  // Create custom email composer popup
+  const composer = document.createElement('div');
+  composer.className = 'email-composer-popup';
+  composer.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.5); z-index: 10000; display: flex;
+    align-items: center; justify-content: center;
+  `;
+  
+  composer.innerHTML = `
+    <div class="email-composer" style="background: white; border-radius: 10px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
+      <div class="composer-header" style="padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0;">📧 Compose Email - ${school.School || 'School'}</h3>
+        <button onclick="this.closest('.email-composer-popup').remove()" style="background: none; border: none; font-size: 20px; cursor: pointer;">×</button>
+      </div>
+      
+      <div class="composer-body" style="padding: 15px;">
+        <div class="field" style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: bold;">To:</label>
+          <input type="email" id="email-to" value="${school.ContactEmail || school.Email || ''}" required style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        
+        <div class="field" style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: bold;">Subject:</label>
+          <input type="text" id="email-subject" placeholder="Email subject..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        </div>
+        
+        <div class="ai-instructions-section" style="margin-bottom: 15px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden;">
+          <button onclick="toggleAIInstructions(this)" style="width: 100%; padding: 10px; background: #f8f9fa; border: none; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+            <span>🤖 AI Instructions</span>
+            <span class="toggle-icon">▼</span>
+          </button>
+          <div class="instructions-content" style="padding: 15px; display: none;">
+            <textarea data-ai-instructions="true" rows="3" placeholder="Customize instructions for the AI email generator..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+          </div>
+        </div>
+        
+        <div class="field" style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 5px; font-weight: bold;">Message:</label>
+          <textarea id="email-body" rows="10" placeholder="Email content will be generated here..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+        </div>
+        
+        <div class="composer-actions" style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button onclick="generateAIEmailDirect('${school.School}')" style="background: #9C27B0; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+            🤖 Generate AI Email
+          </button>
+          <button onclick="sendCustomEmail('${school.School}')" style="background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+            📤 Send Email
+          </button>
+          <button onclick="this.closest('.email-composer-popup').remove()" style="background: #ccc; color: black; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(composer);
+}
+
+function toggleAIInstructions(button) {
+  const content = button.nextElementSibling;
+  const icon = button.querySelector('.toggle-icon');
+  
+  if (content.style.display === 'none') {
+    content.style.display = 'block';
+    icon.textContent = '▲';
+  } else {
+    content.style.display = 'none';
+    icon.textContent = '▼';
+  }
+}
+
+async function generateAIEmailDirect(schoolName) {
+  if (!enhancedAI.context.apiKey) {
+    showToast('❌ Configure Claude API first');
+    return;
+  }
+  
+  const school = DATA.find(s => s.School === schoolName || s.SchoolName === schoolName);
+  if (!school) return;
+  
+  const customInstructions = document.querySelector('[data-ai-instructions="true"]').value;
+  
+  // Build context for AI email generation
+  const context = enhancedAI.buildEmailContext(school);
+  
+  // Use custom instructions if provided, otherwise use default
+  let prompt = customInstructions || enhancedAI.customPrompts.emailGeneration;
+  
+  // Replace template variables
+  prompt = prompt
+    .replace(/{schoolName}/g, context.school)
+    .replace(/{contactName}/g, context.contact)
+    .replace(/{status}/g, context.status)
+    .replace(/{daysSince}/g, context.daysSince || 'Never contacted')
+    .replace(/{notes}/g, context.notes)
+    .replace(/{territory}/g, context.territory)
+    .replace(/{group}/g, context.group);
+
+  try {
+    showToast('🤖 Generating AI email...');
+    
+    const emailBody = await enhancedAI.callClaudeAPI(prompt, enhancedAI.customPrompts.systemInstructions);
+    
+    // Generate subject line
+    const subject = `Science Programs for ${context.school}`;
+    
+    // Insert into form
+    document.getElementById('email-subject').value = subject;
+    document.getElementById('email-body').value = emailBody;
+    
+    showToast('✅ AI email generated!');
+    
+  } catch (error) {
+    console.error('AI email generation failed:', error);
+    showToast(`❌ AI generation failed: ${error.message}`);
+  }
+}
+
+async function sendCustomEmail(schoolName) {
+  const school = DATA.find(s => s.School === schoolName || s.SchoolName === schoolName);
+  if (!school) return;
+  
+  const to = document.getElementById('email-to').value;
+  const subject = document.getElementById('email-subject').value;
+  const body = document.getElementById('email-body').value;
+  
+  if (!to || !subject || !body) {
+    showToast('❌ Please fill in all email fields');
+    return;
+  }
+  
+  try {
+    showToast('📤 Sending email...');
+    
+    const result = await gmailIntegration.sendEmail(to, subject, body, school);
+    
+    if (result.success) {
+      showToast('✅ Email sent successfully!');
+      document.querySelector('.email-composer-popup').remove();
+      
+      // Update marker and refresh popup
+      const marker = markers.find(m => m._rec === school);
+      if (marker) {
+        updateMarkerStyle(marker);
+        if (marker.isPopupOpen()) {
+          marker.setPopupContent(buildPopupHTML(school));
+        }
+      }
+      
+      updateInsights();
+    } else {
+      showToast(`❌ Email failed: ${result.error || 'Unknown error'}`);
+    }
+    
+  } catch (error) {
+    console.error('Email send failed:', error);
+    showToast(`❌ Email send failed: ${error.message || 'Unknown error'}`);
+  }
+}
 
 // AI Email Generation
 function generateAIEmail(record) {
@@ -2134,6 +2943,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   });
 
   // Enhanced AI Chat with CRM context
+  // Enhanced AI Chat with Claude integration
   const sendAIMessage = async () => {
     const input = document.getElementById('aiInput');
     const query = input.value.trim();
@@ -2141,17 +2951,142 @@ document.addEventListener('DOMContentLoaded',()=>{
     
     const chat = document.getElementById('aiChat');
     chat.innerHTML += `<div class="ai-message user">${query}</div>`;
-    input.value = '';
     
-    const response = await enhancedAI.processQuery(query);
-    chat.innerHTML += `<div class="ai-message assistant">${response}</div>`;
+    // Add loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'ai-message assistant loading';
+    loadingDiv.innerHTML = '🤖 Claude is thinking...';
+    chat.appendChild(loadingDiv);
     chat.scrollTop = chat.scrollHeight;
+    
+    input.value = '';
+    input.disabled = true;
+    
+    try {
+      const response = await enhancedAI.processQuery(query);
+      chat.removeChild(loadingDiv);
+      chat.innerHTML += `<div class="ai-message assistant">${response}</div>`;
+    } catch (error) {
+      chat.removeChild(loadingDiv);
+      chat.innerHTML += `<div class="ai-message assistant error">❌ Error: ${error.message}</div>`;
+    } finally {
+      input.disabled = false;
+      input.focus();
+      chat.scrollTop = chat.scrollHeight;
+    }
   };
   
   document.getElementById('aiSend').addEventListener('click', sendAIMessage);
   document.getElementById('aiInput').addEventListener('keydown', e => {
     if (e.key === 'Enter') sendAIMessage();
   });
+
+  // Initialize AI chat with welcome message
+  const initializeAIChat = () => {
+    const chat = document.getElementById('aiChat');
+    const apiKey = localStorage.getItem('ai_api_key');
+    
+    if (apiKey) {
+      chat.innerHTML = `
+        <div class="ai-message assistant">
+          👋 <strong>Hi! I'm Claude, your AI assistant for the Mad Science CRM.</strong><br><br>
+          I'm connected and ready to help you with:
+          <ul style="margin: 10px 0; padding-left: 20px;">
+            <li>Analyzing your school data and sales patterns</li>
+            <li>Writing personalized emails for outreach</li>
+            <li>Suggesting follow-up strategies</li>
+            <li>Territory planning and optimization</li>
+            <li>General business questions and advice</li>
+          </ul>
+          Just ask me anything! For example: <em>"What schools should I follow up with?"</em> or <em>"Write an email for Dartmouth Elementary"</em>
+          <br><br>
+          <button onclick="clearAIChat()" style="background: #f5f5f5; border: 1px solid #ddd; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Clear Chat</button>
+        </div>
+      `;
+    } else {
+      chat.innerHTML = `
+        <div class="ai-message assistant">
+          🤖 <strong>Welcome to the AI Assistant</strong><br><br>
+          To get started, please configure your Claude API key in the <strong>AI Tools</strong> tab above.
+          <br><br>
+          Once configured, I'll be able to help you with intelligent CRM insights, email writing, and data analysis.
+          <br><br>
+          <button onclick="clearAIChat()" style="background: #f5f5f5; border: 1px solid #ddd; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px;">🗑️ Clear Chat</button>
+        </div>
+      `;
+    }
+  };
+
+  // Function to clear AI chat
+  window.clearAIChat = () => {
+    initializeAIChat();
+    enhancedAI.context.history = [];
+  };
+
+  // Initialize chat on load
+  initializeAIChat();
+
+  // Configuration functions
+  window.configureClaudeAPI = () => {
+    const currentKey = localStorage.getItem('ai_api_key') || '';
+    const newKey = prompt('Enter your Claude API key from https://console.anthropic.com:', currentKey);
+    
+    if (newKey !== null) { // User didn't cancel
+      if (newKey.trim()) {
+        localStorage.setItem('ai_api_key', newKey.trim());
+        enhancedAI.context.apiKey = newKey.trim();
+        showToast('✅ Claude API key saved successfully!');
+        initializeAIChat(); // Refresh welcome message
+      } else {
+        localStorage.removeItem('ai_api_key');
+        enhancedAI.context.apiKey = '';
+        showToast('🔑 Claude API key cleared');
+        initializeAIChat(); // Refresh welcome message
+      }
+    }
+  };
+
+  window.configureGmailAPI = async () => {
+    const currentApiKey = localStorage.getItem('gmail_api_key') || '';
+    const currentClientId = localStorage.getItem('gmail_client_id') || '';
+    
+    const apiKey = prompt('Enter your Google API Key:', currentApiKey);
+    if (apiKey === null) return; // User cancelled
+    
+    const clientId = prompt('Enter your Google Client ID:', currentClientId);
+    if (clientId === null) return; // User cancelled
+    
+    if (apiKey && clientId) {
+      gmailIntegration.configure(apiKey, clientId);
+      showToast('✅ Gmail API configured! Authorizing...');
+      
+      // Trigger authorization
+      try {
+        await gmailIntegration.requestAccessToken();
+      } catch (error) {
+        showToast('❌ Gmail authorization failed: ' + error.message);
+      }
+    } else {
+      showToast('⚠️ Both API Key and Client ID are required');
+    }
+  };
+
+  window.setUserProfile = () => {
+    const name = prompt('Enter your name (for email signatures):', localStorage.getItem('user_name') || '');
+    if (name === null) return;
+    
+    const phone = prompt('Enter your phone number (optional):', localStorage.getItem('user_phone') || '');
+    if (phone === null) return;
+    
+    const email = prompt('Enter your email address (optional):', localStorage.getItem('user_email') || '');
+    if (email === null) return;
+    
+    localStorage.setItem('user_name', name || 'Your Name');
+    localStorage.setItem('user_phone', phone || '');
+    localStorage.setItem('user_email', email || '');
+    
+    showToast('✅ User profile updated!');
+  };
 
   // Enhanced AI Search
   document.getElementById('btnAISearch').addEventListener('click', () => {
@@ -2351,6 +3286,12 @@ Next Actions:
     
     showToast('Enhanced CRM Report generated and downloaded');
   });
+
+  // Initialize Gmail integration
+  if (gmailIntegration.config.apiKey && gmailIntegration.config.clientId) {
+    gmailIntegration.initialize();
+  }
+  gmailIntegration.updateGmailStatus();
 });
 </script>
 </body>
