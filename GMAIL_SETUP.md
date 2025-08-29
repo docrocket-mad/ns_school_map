@@ -7,6 +7,19 @@ The Gmail integration allows you to send emails directly from the CRM with perso
 1. Google Cloud Project with Gmail API enabled
 2. OAuth 2.0 credentials configured
 
+## 🚨 IMPORTANT: OAuth Redirect Issue Fix
+
+**The Problem:** File:// protocol doesn't work with Google OAuth
+**The Solution:** Use the local web server instead
+
+### Quick Fix - Use Local Web Server
+1. **Run the local server:**
+   ```bash
+   python serve.py
+   ```
+2. **Open in browser:** http://localhost:8000 (instead of opening the HTML file directly)
+3. **Configure OAuth origins:** Add `http://localhost:8000` to your Google Cloud Console
+
 ## Setup Steps
 
 ### 1. Create Google Cloud Project
@@ -22,11 +35,11 @@ The Gmail integration allows you to send emails directly from the CRM with perso
 2. Click "Create Credentials" > "OAuth client ID"
 3. Select "Web application"
 4. Add authorized JavaScript origins:
-   - `http://localhost` (for local testing)
-   - Your domain if hosted
+   - `http://localhost:8000` (for local web server)
+   - `http://127.0.0.1:8000` (alternative localhost)
 5. Add authorized redirect URIs:
-   - `http://localhost` (for local testing)
-   - Your domain if hosted
+   - `http://localhost:8000` (for local web server)
+   - `http://127.0.0.1:8000` (alternative localhost)
 6. Save and note down:
    - **Client ID** (looks like: `123456789-abc123.apps.googleusercontent.com`)
    - **API Key** (from API Keys section)

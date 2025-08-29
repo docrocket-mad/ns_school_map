@@ -19,6 +19,7 @@
   #panelHeader {
     display:flex; align-items:center; justify-content:space-between;
     padding:8px 10px; border-bottom:1px solid #e6e6e6; background:#f7f7f9;
+    cursor: move;
   }
   #panelHeader .badge { background:#ffe08a; color:#7a4d00; font-weight:700; padding:2px 6px; border-radius:6px; }
   #panelHeader .title { font-weight:700; font-size:14px; display:flex; align-items:center; gap:8px; }
@@ -162,6 +163,7 @@
     display:flex; align-items:center; justify-content:space-between;
     padding:8px 10px; border-bottom:1px solid #e6e6e6; 
     background:#f7f7f9; border-radius:10px 10px 0 0;
+    cursor: move;
   }
   #insightsHeader.has-update {
     background:linear-gradient(135deg, #f7f7f9 0%, #f0e6ff 100%);
@@ -286,17 +288,19 @@
   
   /* AI Assistant Panel */
   #aiPanel {
-    position:fixed; top:460px; right:20px; z-index:9997;
+    position:fixed; bottom:80px; right:20px; z-index:9997;
     width:320px; height:360px; background:#fff;
     border:1px solid #ccc; border-radius:10px;
     box-shadow:0 2px 6px rgba(0,0,0,0.15);
     font-family:system-ui, -apple-system, sans-serif;
     display:none; flex-direction:column;
+    cursor: move;
   }
   #aiPanel.active { display:flex; }
   
   #aiHeader {
     display:flex; align-items:center; justify-content:space-between;
+    cursor: move;
     padding:10px 14px; border-bottom:1px solid #e6e6e6;
     background:linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%);
     color:#fff; border-radius:10px 10px 0 0;
@@ -329,6 +333,27 @@
   @keyframes pulse {
     0% { opacity: 0.6; }
     100% { opacity: 1; }
+  }
+  
+  .api-status {
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    min-width: 20px;
+    text-align: center;
+    transition: all 0.3s ease;
+  }
+  .api-status.active {
+    background: #d4edda;
+    border-color: #4CAF50;
+    color: #155724;
+  }
+  .api-status.inactive {
+    background: #f8d7da;
+    border-color: #f56565;
+    color: #721c24;
   }
   
   #aiInputArea {
@@ -664,9 +689,28 @@
     <div id="ai-tools-content" class="tab-content">
       <div style="margin-bottom:12px;">
         <div style="font-weight:600; margin-bottom:6px;">⚙️ API Configuration</div>
-        <button onclick="configureClaudeAPI()" type="button" style="width:100%; margin-bottom:4px; background: #9C27B0; color: white;">⚙️ Configure Claude API</button>
-        <button onclick="configureGmailAPI()" type="button" style="width:100%; margin-bottom:4px; background: #4285F4; color: white;">📧 Configure Gmail API</button>
-        <button onclick="setUserProfile()" type="button" style="width:100%; margin-bottom:4px; background: #607D8B; color: white;">👤 Set User Profile</button>
+        
+        <!-- Claude API Status & Config -->
+        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+          <button onclick="configureClaudeAPI()" type="button" style="flex: 1; background: #9C27B0; color: white;">⚙️ Configure Claude API</button>
+          <div id="claude-status" class="api-status" style="margin-left: 8px; font-size: 12px;">❌</div>
+        </div>
+        
+        <!-- Gmail API Status & Config -->
+        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+          <div style="display: flex; gap: 4px; flex: 1;">
+            <button onclick="configureGmailCredentials()" type="button" style="flex: 1; background: #4285F4; color: white; font-size: 11px;">📧 Gmail Setup</button>
+            <button onclick="authorizeGmail()" type="button" style="flex: 1; background: #34A853; color: white; font-size: 11px;">🔑 Authorize</button>
+          </div>
+          <div id="gmail-status" class="api-status" style="margin-left: 8px; font-size: 12px;">❌</div>
+        </div>
+        
+        <!-- User Profile Status & Config -->
+        <div style="display: flex; align-items: center; margin-bottom: 4px;">
+          <button onclick="setUserProfile()" type="button" style="flex: 1; background: #607D8B; color: white;">👤 Set User Profile</button>
+          <div id="profile-status" class="api-status" style="margin-left: 8px; font-size: 12px;">❌</div>
+        </div>
+        
         <div style="font-size:11px; color:#666; margin-top:4px;">Set up AI and email integration</div>
       </div>
 
@@ -1088,9 +1132,10 @@ function buildPopupHTML(rec){
       ${canUpdateKey ? `
         <div class="popup-actions">
           <button class="update-btn" data-role="update-record">💾 Save Changes</button>
+          ${gmailIntegration.getEmailButton(rec)}
         </div>
         
-        ${gmailIntegration.createEmailInterface(rec)}
+        ${gmailIntegration.getLastEmailInfo(rec)}
       ` : `
         <div class="popup-readonly">
           <small>🔒 Read-only mode - Add update key to edit</small>
@@ -1652,7 +1697,7 @@ Generate ONLY the email body (no subject line needed).`;
   }
 
   getDefaultSystemPrompt() {
-    return `You are an AI assistant helping manage a Mad Science franchise CRM. You specialize in writing professional, personalized outreach emails to schools.
+    return `You are Claude, an AI assistant helping manage a Mad Science franchise CRM. You specialize in writing professional, personalized outreach emails to schools.
 
 Key guidelines:
 - Always use the actual contact name provided
@@ -1681,11 +1726,14 @@ Key guidelines:
   async getAPIEndpoint() {
     // Try local proxy first, fallback to direct API
     try {
-      const proxyResponse = await fetch('http://localhost:8080/test', { method: 'HEAD' });
-      return 'http://localhost:8080/v1/messages';
+      const proxyResponse = await fetch('http://localhost:8080/health', { method: 'GET' });
+      if (proxyResponse.ok) {
+        return 'http://localhost:8080/api/anthropic';
+      }
     } catch {
-      return 'https://api.anthropic.com/v1/messages';
+      // Proxy not available, use direct API
     }
+    return 'https://api.anthropic.com/v1/messages';
   }
 
   async callClaudeAPI(prompt, systemPrompt = '') {
@@ -1707,7 +1755,7 @@ Key guidelines:
         body: JSON.stringify({
           model: 'claude-3-haiku-20240307',
           max_tokens: 1000,
-          system: systemPrompt || 'You are an AI assistant helping manage a Mad Science franchise CRM. Be concise, actionable, and focused on sales success.',
+          system: systemPrompt || 'You are Claude, a helpful AI assistant for the Mad Science franchise CRM. Be friendly, conversational, and focused on helping with sales success and school outreach.',
           messages: [{
             role: 'user',
             content: prompt
@@ -2102,14 +2150,6 @@ class GmailIntegration {
   }
 
   initializeOAuth() {
-    // Initialize Google Identity Services
-    google.accounts.id.initialize({
-      client_id: this.config.clientId,
-      callback: (response) => {
-        this.handleCredentialResponse(response);
-      }
-    });
-
     // Check if already signed in
     const savedToken = localStorage.getItem('gmail_access_token');
     if (savedToken) {
@@ -2127,21 +2167,78 @@ class GmailIntegration {
 
   async requestAccessToken() {
     try {
-      const client = google.accounts.oauth2.initTokenClient({
-        client_id: this.config.clientId,
-        scope: 'https://www.googleapis.com/auth/gmail.send',
-        callback: (response) => {
-          if (response.access_token) {
-            localStorage.setItem('gmail_access_token', response.access_token);
-            this.handleSignIn(response.access_token);
-          }
-        },
-      });
+      // Check if we're running on localhost or file://
+      const isLocalFile = window.location.protocol === 'file:';
+      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
       
-      client.requestAccessToken();
+      if (isLocalFile) {
+        // For file:// protocol, redirect to a simple web-based auth flow
+        const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+          `client_id=${this.config.clientId}&` +
+          `redirect_uri=urn:ietf:wg:oauth:2.0:oob&` +
+          `scope=https://www.googleapis.com/auth/gmail.send&` +
+          `response_type=code&` +
+          `access_type=offline&` +
+          `prompt=consent`;
+        
+        showToast('🔑 Opening authorization page... Copy the code and paste it back here.');
+        window.open(authUrl, '_blank');
+        
+        // Ask user to paste the authorization code
+        setTimeout(() => {
+          const authCode = prompt('Paste the authorization code from Google here:');
+          if (authCode) {
+            this.exchangeCodeForToken(authCode);
+          } else {
+            showToast('❌ Authorization cancelled');
+          }
+        }, 2000);
+        
+      } else {
+        // Use the token client for localhost
+        const client = google.accounts.oauth2.initTokenClient({
+          client_id: this.config.clientId,
+          scope: 'https://www.googleapis.com/auth/gmail.send',
+          callback: (response) => {
+            if (response.access_token) {
+              localStorage.setItem('gmail_access_token', response.access_token);
+              this.handleSignIn(response.access_token);
+              showToast('✅ Gmail authorization successful!');
+            } else if (response.error) {
+              console.error('OAuth error:', response.error);
+              showToast('❌ Gmail authorization failed: ' + response.error);
+            }
+          },
+        });
+        
+        client.requestAccessToken();
+      }
     } catch (error) {
       console.error('Access token request failed:', error);
-      showToast('❌ Gmail authorization failed');
+      showToast('❌ Gmail authorization failed: ' + error.message);
+    }
+  }
+
+  async exchangeCodeForToken(authCode) {
+    try {
+      showToast('🔄 Exchanging authorization code for access token...');
+      
+      // Note: This requires a server-side endpoint to exchange the code
+      // For now, we'll show instructions to the user
+      showToast('⚠️ Manual token exchange needed - check GMAIL_SETUP.md for instructions');
+      
+      // Alternative: Ask user to manually get token
+      setTimeout(() => {
+        const accessToken = prompt('This requires manual token exchange. If you have an access token, paste it here (or check GMAIL_SETUP.md):');
+        if (accessToken) {
+          localStorage.setItem('gmail_access_token', accessToken);
+          this.handleSignIn(accessToken);
+        }
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Token exchange failed:', error);
+      showToast('❌ Token exchange failed: ' + error.message);
     }
   }
 
@@ -2157,6 +2254,11 @@ class GmailIntegration {
       window.gapi.client.setToken({ access_token: accessToken });
       this.updateGmailStatus();
       showToast('✅ Gmail connected successfully!');
+      
+      // Update API status indicators
+      if (window.updateAPIStatus) {
+        window.updateAPIStatus();
+      }
     });
   }
 
@@ -2167,6 +2269,11 @@ class GmailIntegration {
     localStorage.removeItem('gmail_credential');
     this.updateGmailStatus();
     showToast('📤 Signed out of Gmail');
+    
+    // Update API status indicators
+    if (window.updateAPIStatus) {
+      window.updateAPIStatus();
+    }
   }
 
   updateGmailStatus() {
@@ -2271,54 +2378,48 @@ class GmailIntegration {
   }
 
   createEmailInterface(school) {
-    const status = normalizeStatus(school.Status || 'none');
     const hasEmail = school.ContactEmail || school.Email;
     
     if (!hasEmail) {
       return `<div class="email-section">
-        <div class="section-header">📧 Email Actions</div>
         <p style="color: #f44336; font-style: italic;">⚠️ Add contact email to enable email features</p>
       </div>`;
     }
 
-    const isUncontacted = status === 'none';
-    const isFirstOutreach = status === 'firstoutreach';
-    const hasReplied = ['replied', 'inprogress'].includes(status);
-
     return `
       <div class="email-section">
-        <div class="section-header">📧 Email Actions</div>
-        <div class="email-buttons">
-          ${isUncontacted ? 
-            `<button onclick="sendQuickEmail('${school.School}', 'introduction')" class="btn btn-primary">
-               🤖 AI Introduction Email
-             </button>` : ''
-          }
-          
-          ${isFirstOutreach ? 
-            `<button onclick="sendQuickEmail('${school.School}', 'followUp1')" class="btn btn-secondary">
-               🤖 AI Follow-up Email
-             </button>` : ''
-          }
-          
-          ${hasReplied ? 
-            `<button onclick="sendQuickEmail('${school.School}', 'replied')" class="btn btn-success">
-               🤖 AI Response Email
-             </button>` : ''
-          }
-          
-          <button onclick="openEmailComposer('${school.School}')" class="btn btn-outline">
-            ✏️ Custom Email Composer
-          </button>
-        </div>
+        <button onclick="openEmailComposer('${school.School}')" class="btn btn-primary" style="margin-left: 10px;">
+          📧 Send Email with AI
+        </button>
         
         ${school.LastEmailSent ? 
-          `<div class="last-email">
+          `<div class="last-email" style="margin-top: 8px; font-size: 12px; color: #666;">
              Last emailed: ${formatDate(new Date(school.LastEmailSent))}
            </div>` : ''
         }
       </div>
     `;
+  }
+
+  getEmailButton(school) {
+    const hasEmail = school.ContactEmail || school.Email;
+    
+    if (!hasEmail) {
+      return `<span style="color: #999; font-size: 12px;">⚠️ Add email to send</span>`;
+    }
+
+    return `<button onclick="openEmailComposer('${school.School}')" class="btn btn-primary">
+      📧 Send Email with AI
+    </button>`;
+  }
+
+  getLastEmailInfo(school) {
+    if (school.LastEmailSent) {
+      return `<div class="last-email" style="margin-top: 8px; font-size: 12px; color: #666; text-align: center;">
+        Last emailed: ${formatDate(new Date(school.LastEmailSent))}
+      </div>`;
+    }
+    return '';
   }
 }
 
@@ -2989,7 +3090,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     if (apiKey) {
       chat.innerHTML = `
         <div class="ai-message assistant">
-          👋 <strong>Hi! I'm Claude, your AI assistant for the Mad Science CRM.</strong><br><br>
+          👋 <strong>Hi! I'm Claude, your AI assistant for the Mad Science CRM!</strong><br><br>
           I'm connected and ready to help you with:
           <ul style="margin: 10px 0; padding-left: 20px;">
             <li>Analyzing your school data and sales patterns</li>
@@ -3026,6 +3127,72 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Initialize chat on load
   initializeAIChat();
 
+  // Function to update API status indicators
+  window.updateAPIStatus = function updateAPIStatus() {
+    // Claude API Status
+    const claudeStatus = document.getElementById('claude-status');
+    const hasClaudeAPI = localStorage.getItem('ai_api_key');
+    if (hasClaudeAPI) {
+      claudeStatus.textContent = '✅';
+      claudeStatus.className = 'api-status active';
+      claudeStatus.title = 'Claude API configured and ready';
+    } else {
+      claudeStatus.textContent = '❌';
+      claudeStatus.className = 'api-status inactive';
+      claudeStatus.title = 'Claude API not configured';
+    }
+
+    // Gmail API Status
+    const gmailStatus = document.getElementById('gmail-status');
+    const hasGmailCreds = gmailIntegration.config.apiKey && gmailIntegration.config.clientId;
+    const isAuthorized = gmailIntegration.isSignedIn;
+    
+    if (isAuthorized) {
+      gmailStatus.textContent = '✅';
+      gmailStatus.className = 'api-status active';
+      gmailStatus.title = 'Gmail API configured and authorized';
+    } else if (hasGmailCreds) {
+      gmailStatus.textContent = '⚠️';
+      gmailStatus.className = 'api-status';
+      gmailStatus.title = 'Gmail credentials set, authorization needed';
+    } else {
+      gmailStatus.textContent = '❌';
+      gmailStatus.className = 'api-status inactive';
+      gmailStatus.title = 'Gmail API not configured';
+    }
+
+    // User Profile Status
+    const profileStatus = document.getElementById('profile-status');
+    const userName = localStorage.getItem('user_name');
+    if (userName && userName !== 'Your Name') {
+      profileStatus.textContent = '✅';
+      profileStatus.className = 'api-status active';
+      profileStatus.title = `Profile set for: ${userName}`;
+    } else {
+      profileStatus.textContent = '❌';
+      profileStatus.className = 'api-status inactive';
+      profileStatus.title = 'User profile not set';
+    }
+  }
+
+  // Initialize user profile from localStorage
+  function initializeUserProfile() {
+    // Set defaults if not already set
+    if (!localStorage.getItem('user_name')) {
+      localStorage.setItem('user_name', 'Your Name');
+    }
+    if (!localStorage.getItem('user_phone')) {
+      localStorage.setItem('user_phone', '');
+    }
+    if (!localStorage.getItem('user_email')) {
+      localStorage.setItem('user_email', '');
+    }
+  }
+
+  // Initialize everything
+  initializeUserProfile();
+  updateAPIStatus();
+
   // Configuration functions
   window.configureClaudeAPI = () => {
     const currentKey = localStorage.getItem('ai_api_key') || '';
@@ -3037,55 +3204,99 @@ document.addEventListener('DOMContentLoaded',()=>{
         enhancedAI.context.apiKey = newKey.trim();
         showToast('✅ Claude API key saved successfully!');
         initializeAIChat(); // Refresh welcome message
+        updateAPIStatus(); // Update status indicator
       } else {
         localStorage.removeItem('ai_api_key');
         enhancedAI.context.apiKey = '';
         showToast('🔑 Claude API key cleared');
         initializeAIChat(); // Refresh welcome message
+        updateAPIStatus(); // Update status indicator
       }
     }
   };
 
-  window.configureGmailAPI = async () => {
+  window.configureGmailCredentials = () => {
     const currentApiKey = localStorage.getItem('gmail_api_key') || '';
     const currentClientId = localStorage.getItem('gmail_client_id') || '';
     
     const apiKey = prompt('Enter your Google API Key:', currentApiKey);
     if (apiKey === null) return; // User cancelled
     
-    const clientId = prompt('Enter your Google Client ID:', currentClientId);
+    const clientId = prompt('Enter your Google Client ID (format: xxx.apps.googleusercontent.com):', currentClientId);
     if (clientId === null) return; // User cancelled
     
     if (apiKey && clientId) {
       gmailIntegration.configure(apiKey, clientId);
-      showToast('✅ Gmail API configured! Authorizing...');
-      
-      // Trigger authorization
-      try {
-        await gmailIntegration.requestAccessToken();
-      } catch (error) {
-        showToast('❌ Gmail authorization failed: ' + error.message);
-      }
+      showToast('✅ Gmail credentials saved! Now click "🔑 Authorize" to connect.');
+      updateAPIStatus(); // Update status indicator
     } else {
       showToast('⚠️ Both API Key and Client ID are required');
     }
   };
 
+  window.authorizeGmail = async () => {
+    // Check if running from file:// protocol
+    if (window.location.protocol === 'file:') {
+      const useServer = confirm(
+        '⚠️ Gmail OAuth doesn\'t work with file:// protocol.\n\n' +
+        'To fix this:\n' +
+        '1. Run "python serve.py" or "start_server.bat"\n' +
+        '2. Open http://localhost:8000 instead\n' +
+        '3. Add http://localhost:8000 to Google Cloud Console origins\n\n' +
+        'Click OK to continue anyway (manual auth), or Cancel to stop.'
+      );
+      
+      if (!useServer) {
+        showToast('📖 Check GMAIL_SETUP.md for detailed instructions');
+        return;
+      }
+    }
+
+    if (!gmailIntegration.config.apiKey || !gmailIntegration.config.clientId) {
+      showToast('⚠️ Configure Gmail credentials first using "📧 Gmail Setup"');
+      return;
+    }
+
+    try {
+      showToast('🔑 Starting Gmail authorization...');
+      await gmailIntegration.initialize();
+      await gmailIntegration.requestAccessToken();
+    } catch (error) {
+      console.error('Gmail authorization error:', error);
+      showToast('❌ Authorization failed: ' + error.message);
+      
+      if (window.location.protocol === 'file:') {
+        setTimeout(() => {
+          showToast('💡 Tip: Use "python serve.py" to run on localhost:8000 for proper OAuth');
+        }, 2000);
+      }
+    }
+  };
+
   window.setUserProfile = () => {
-    const name = prompt('Enter your name (for email signatures):', localStorage.getItem('user_name') || '');
-    if (name === null) return;
+    const currentName = localStorage.getItem('user_name') || '';
+    const currentPhone = localStorage.getItem('user_phone') || '';
+    const currentEmail = localStorage.getItem('user_email') || '';
     
-    const phone = prompt('Enter your phone number (optional):', localStorage.getItem('user_phone') || '');
-    if (phone === null) return;
+    // Show current profile in the prompt
+    const displayName = currentName === 'Your Name' ? '' : currentName;
     
-    const email = prompt('Enter your email address (optional):', localStorage.getItem('user_email') || '');
-    if (email === null) return;
+    const name = prompt('Enter your name (for email signatures):', displayName);
+    if (name === null) return; // User cancelled
     
-    localStorage.setItem('user_name', name || 'Your Name');
-    localStorage.setItem('user_phone', phone || '');
-    localStorage.setItem('user_email', email || '');
+    const phone = prompt('Enter your phone number (optional):', currentPhone);
+    if (phone === null) return; // User cancelled
+    
+    const email = prompt('Enter your email address (optional):', currentEmail);
+    if (email === null) return; // User cancelled
+    
+    // Save the values
+    localStorage.setItem('user_name', name.trim() || 'Your Name');
+    localStorage.setItem('user_phone', phone.trim() || '');
+    localStorage.setItem('user_email', email.trim() || '');
     
     showToast('✅ User profile updated!');
+    updateAPIStatus(); // Update status indicator
   };
 
   // Enhanced AI Search
@@ -3289,10 +3500,91 @@ Next Actions:
 
   // Initialize Gmail integration
   if (gmailIntegration.config.apiKey && gmailIntegration.config.clientId) {
-    gmailIntegration.initialize();
+    gmailIntegration.initialize().then(() => {
+      updateAPIStatus(); // Update status after initialization
+    });
   }
   gmailIntegration.updateGmailStatus();
+  updateAPIStatus(); // Initial status update
+
+  // Initialize drag functionality for all panels
+  initializeDragFunctionality();
 });
+
+// Drag functionality for moveable panels
+function initializeDragFunctionality() {
+  const draggableElements = [
+    { panel: 'panel', header: 'panelHeader' },
+    { panel: 'insightsPanel', header: 'insightsHeader' },
+    { panel: 'aiPanel', header: 'aiHeader' }
+  ];
+
+  draggableElements.forEach(({ panel, header }) => {
+    makeDraggable(panel, header);
+  });
+}
+
+function makeDraggable(panelId, headerId) {
+  const panel = document.getElementById(panelId);
+  const header = document.getElementById(headerId);
+  
+  if (!panel || !header) return;
+
+  let isDragging = false;
+  let startX, startY, initialX, initialY;
+
+  header.addEventListener('mousedown', (e) => {
+    // Don't drag when clicking buttons
+    if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+      return;
+    }
+
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+
+    // Get current position
+    const rect = panel.getBoundingClientRect();
+    initialX = rect.left;
+    initialY = rect.top;
+
+    // Change cursor and prevent selection
+    document.body.style.cursor = 'grabbing';
+    document.body.style.userSelect = 'none';
+    
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+
+    const deltaX = e.clientX - startX;
+    const deltaY = e.clientY - startY;
+
+    const newX = initialX + deltaX;
+    const newY = initialY + deltaY;
+
+    // Keep panel within viewport bounds
+    const maxX = window.innerWidth - panel.offsetWidth;
+    const maxY = window.innerHeight - panel.offsetHeight;
+    
+    const clampedX = Math.max(0, Math.min(newX, maxX));
+    const clampedY = Math.max(0, Math.min(newY, maxY));
+
+    panel.style.left = clampedX + 'px';
+    panel.style.top = clampedY + 'px';
+    panel.style.right = 'auto';
+    panel.style.bottom = 'auto';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+}
 </script>
 </body>
 </html>
