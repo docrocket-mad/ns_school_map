@@ -325,7 +325,7 @@
   .ai-message.user {
     background:#6a1b9a; color:#fff; margin-left:auto; margin-right:0;
     text-align:left; max-width:fit-content; min-width:60px;
-    display:inline-block; float:right; clear:both;
+    float:right; clear:both;
   }
   .ai-message.assistant {
     background:#fff; border:1px solid #e0e0e0; max-width:90%;
@@ -697,21 +697,6 @@
     <!-- AI Tools Tab -->
     <div id="ai-tools-content" class="tab-content">
       <div style="margin-bottom:12px;">
-        <div style="font-weight:600; margin-bottom:6px;">👥 User Profile</div>
-        <div style="display: flex; gap: 4px; margin-bottom: 8px;">
-          <select id="userProfileSelect" style="flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
-            <option value="">Select User Profile</option>
-          </select>
-          <button onclick="createNewProfile()" type="button" style="background: #4CAF50; color: white; padding: 6px 8px; border: none; border-radius: 4px; cursor: pointer;">+ New</button>
-        </div>
-        <div style="display: flex; gap: 4px;">
-          <button onclick="switchProfile()" type="button" style="flex: 1; background: #2196F3; color: white; font-size: 11px;">Switch Profile</button>
-          <button onclick="deleteProfile()" type="button" style="flex: 1; background: #f44336; color: white; font-size: 11px;">Delete Profile</button>
-        </div>
-        <div id="current-user-display" style="font-size: 11px; color: #666; margin-top: 4px; text-align: center;">No user selected</div>
-      </div>
-
-      <div style="margin-bottom:12px;">
         <div style="font-weight:600; margin-bottom:6px;">⚙️ API Configuration</div>
         
         <!-- Claude API Status & Config -->
@@ -751,6 +736,24 @@
         <div style="font-size:11px; color:#666; margin-top:4px;">Email or update status for multiple schools</div>
       </div>
 
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:600; margin-bottom:6px;">🔍 Advanced Search</div>
+        <input id="aiSearchBox" type="text" placeholder="Try: 'uncontacted', 'with notes', 'in progress'..." style="width:100%; padding:6px; margin-bottom:6px;">
+        <button id="btnAISearch" type="button" style="width:100%;">Search with Keywords</button>
+        <div style="font-size:11px; color:#666; margin-top:4px;">Searches status, notes, and all fields with smart matching</div>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:600; margin-bottom:6px;">📊 Quick Analysis</div>
+        <button id="btnAnalyzeTerritory" type="button" style="width:100%; margin-bottom:4px;">Analyze Current View</button>
+        <button id="btnPredictGrowth" type="button" style="width:100%;">Predict Growth Potential</button>
+      </div>
+
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:600; margin-bottom:6px;">📈 Reports</div>
+        <button id="btnGenerateReport" type="button" style="width:100%;">Generate Analysis Report</button>
+        <div style="font-size:11px; color:#666; margin-top:4px;">Creates a downloadable report with insights</div>
+      </div>
     </div>
   </div>
 </div>
@@ -824,7 +827,7 @@ const TERRITORIES_URL = "territories.json";  // Territory boundaries file
 const COLOR = { 
   none:"#808080",           // Gray - untouched
   firstoutreach:"#5DADE2",  // Light Blue - we reached out  
-  replied:"#e91e63",        // Pink - customer replied
+  replied:"#17becf",        // Teal - customer replied
   inprogress:"#ff7f0e",     // Orange - actively negotiating
   current:"#2ca02c",        // Green - active customer
   uninterested:"#d62728",   // Red - dead lead
@@ -1709,28 +1712,19 @@ Requirements:
 8. Use proper contact name (not "there")
 9. Avoid placeholder text like [Your Name]
 
-CRITICAL: Generate ONLY the email body starting with "Dear [Name]," - no preamble, explanation, or descriptive text. Do not include phrases like "Here is the email" or "This is a professional email for..."`;
+Generate ONLY the email body (no subject line needed).`;
   }
 
   getDefaultSystemPrompt() {
-    const userName = localStorage.getItem('user_name') || 'the franchise owner';
-    const userEmail = localStorage.getItem('user_email') || '';
-    
-    return `You are an AI assistant helping write professional emails for a Mad Science franchise. Write emails as if you are ${userName}, representing the Mad Science franchise.
-
-IMPORTANT: Return ONLY the email content. Do not include any preamble, explanation, or meta-text like "Here is a professional email..." or "This email is for...". Start directly with the greeting (e.g., "Dear [Name],").
+    return `You are Claude, an AI assistant helping manage a Mad Science franchise CRM. You specialize in writing professional, personalized outreach emails to schools.
 
 Key guidelines:
-- Write in first person as ${userName}
 - Always use the actual contact name provided
 - Reference specific details from notes when available
 - Match tone to relationship status (new vs existing contact)
 - Keep emails concise but personal
 - Include clear next steps or call-to-action
-- Never introduce yourself as "Claude" or any AI
-- Never use placeholder text like [Your Name] or "Dear there"
-- Sign emails appropriately for ${userName}${userEmail ? ` (${userEmail})` : ''}
-- Return ONLY the email body - no explanatory text before or after`;
+- Never use placeholder text like [Your Name] or "Dear there"`;
   }
 
   async initializeAPI() {
@@ -1866,9 +1860,6 @@ Key guidelines:
       const visible = markers.filter(m => m && m._rec && map.hasLayer(m)).map(m => m._rec);
       const statusDist = this.context.statusDistribution;
       
-      // Extract specific school if mentioned in query
-      const schoolMatches = this.findSchoolsInQuery(query, visible);
-      
       // Create rich context data
       const contextData = {
         totalSchools: DATA.length,
@@ -1877,18 +1868,7 @@ Key guidelines:
         territory: this.context.currentTerritory?.name || 'all territories',
         recentActivity: this.getRecentActivity(visible),
         topPriorities: this.getTopPriorities(visible),
-        dataQuality: this.getDataQuality(visible),
-        // Include specific school data if found
-        mentionedSchools: schoolMatches.length > 0 ? schoolMatches : null,
-        // Include sample of visible schools for context
-        sampleSchools: visible.slice(0, 20).map(school => ({
-          name: school.School || school.SchoolName,
-          status: normalizeStatus(school.Status),
-          contactName: school.ContactName || 'Not set',
-          contactEmail: school.ContactEmail || school.Email || 'Not set',
-          notes: (school.Notes || '').substring(0, 200),
-          lastModified: school.LastModified
-        }))
+        dataQuality: this.getDataQuality(visible)
       };
 
       // Create comprehensive system prompt with CRM context
@@ -1899,21 +1879,6 @@ Current CRM Context:
 - Currently viewing: ${contextData.visibleSchools} schools in ${contextData.territory}
 - Status breakdown: ${Object.entries(statusDist).map(([k,v]) => `${k}: ${v}`).join(', ')}
 - Data quality: ${contextData.dataQuality}
-
-${contextData.mentionedSchools ? `
-SPECIFIC SCHOOL DATA (user mentioned these schools):
-${contextData.mentionedSchools.map(school => `
-- ${school.name}
-  Status: ${school.status}
-  Contact: ${school.contactName} (${school.contactEmail})
-  Address: ${school.address}
-  Notes: ${school.notes || 'No notes'}
-  Last Modified: ${school.lastModified || 'Never'}
-`).join('')}
-` : ''}
-
-SAMPLE SCHOOLS (for reference):
-${contextData.sampleSchools.map(school => `• ${school.name} - ${school.status} - ${school.contactName}`).join('\n')}
 
 Key CRM Data Available:
 - School names, addresses, contact information
@@ -1930,8 +1895,6 @@ You can help with:
 - Territory planning and optimization
 - General business strategy and advice
 - Any questions about the data or CRM functionality
-
-IMPORTANT: When users ask about specific schools, look for them in the "SPECIFIC SCHOOL DATA" section above or the sample schools list. If you can't find exact matches, suggest similar school names from the available data. Always be helpful and provide detailed information about any schools you can find.
 
 Be conversational, helpful, and provide actionable insights. If asked about specific schools or data, reference the context provided. For email writing requests, ask for the school name if not specified.`;
 
@@ -1970,59 +1933,6 @@ ${this.context.history.slice(-5).map(h => `${h.type}: ${h.text}`).join('\n')}`;
     const withEmail = visible.filter(r => r.ContactEmail || r.Email).length;
     const withContact = visible.filter(r => r.ContactName).length;
     return `${Math.round(withEmail/visible.length*100)}% have emails, ${Math.round(withContact/visible.length*100)}% have contact names`;
-  }
-
-  findSchoolsInQuery(query, visible) {
-    const lowerQuery = query.toLowerCase();
-    const schoolMatches = [];
-    
-    // Search in visible schools and all DATA for mentioned schools
-    const searchData = visible.length > 0 ? visible : DATA;
-    
-    for (const school of searchData) {
-      const schoolName = (school.School || school.SchoolName || '').toLowerCase();
-      const address = (school.Address || '').toLowerCase();
-      
-      // Check if school name is mentioned in query
-      if (schoolName && lowerQuery.includes(schoolName)) {
-        schoolMatches.push({
-          name: school.School || school.SchoolName,
-          status: normalizeStatus(school.Status),
-          contactName: school.ContactName || 'Not set',
-          contactEmail: school.ContactEmail || school.Email || 'Not set',
-          address: school.Address,
-          notes: school.Notes || '',
-          lastModified: school.LastModified,
-          territory: school.Territory || 'Unknown'
-        });
-      }
-      
-      // Also check for partial matches of significant school names
-      else if (schoolName.length > 6) {
-        const schoolWords = schoolName.split(' ').filter(word => word.length > 3);
-        for (const word of schoolWords) {
-          if (lowerQuery.includes(word)) {
-            schoolMatches.push({
-              name: school.School || school.SchoolName,
-              status: normalizeStatus(school.Status),
-              contactName: school.ContactName || 'Not set',
-              contactEmail: school.ContactEmail || school.Email || 'Not set',
-              address: school.Address,
-              notes: school.Notes || '',
-              lastModified: school.LastModified,
-              territory: school.Territory || 'Unknown',
-              matchedWord: word
-            });
-            break; // Only add once per school
-          }
-        }
-      }
-    }
-    
-    // Remove duplicates
-    return schoolMatches.filter((school, index, arr) => 
-      arr.findIndex(s => s.name === school.name) === index
-    );
   }
 
   getBuiltInResponse(query) {
@@ -2285,7 +2195,7 @@ class GmailIntegration {
         const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
           `client_id=${this.config.clientId}&` +
           `redirect_uri=urn:ietf:wg:oauth:2.0:oob&` +
-          `scope=https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.settings.basic&` +
+          `scope=https://www.googleapis.com/auth/gmail.send&` +
           `response_type=code&` +
           `access_type=offline&` +
           `prompt=consent`;
@@ -2307,13 +2217,12 @@ class GmailIntegration {
         // Use the token client for localhost
         const client = google.accounts.oauth2.initTokenClient({
           client_id: this.config.clientId,
-          scope: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.settings.basic',
+          scope: 'https://www.googleapis.com/auth/gmail.send',
           callback: (response) => {
             if (response.access_token) {
               localStorage.setItem('gmail_access_token', response.access_token);
               this.handleSignIn(response.access_token);
               showToast('✅ Gmail authorization successful!');
-              if (window.profileManager) profileManager.updateCurrentProfileData();
             } else if (response.error) {
               console.error('OAuth error:', response.error);
               showToast('❌ Gmail authorization failed: ' + response.error);
@@ -2352,37 +2261,24 @@ class GmailIntegration {
     }
   }
 
-  async handleSignIn(accessToken) {
-    try {
-      this.isSignedIn = true;
-      this.accessToken = accessToken;
-      
-      // Ensure gapi is loaded first
-      if (!window.gapi) {
-        console.log('Loading Gmail API...');
-        await this.loadGapi();
-      }
-      
-      // Initialize Gmail API
-      await window.gapi.client.init({
-        apiKey: this.config.apiKey,
-        discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest'],
-      });
-      
+  handleSignIn(accessToken) {
+    this.isSignedIn = true;
+    this.accessToken = accessToken;
+    
+    // Initialize Gmail API
+    window.gapi.client.init({
+      apiKey: this.config.apiKey,
+      discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/gmail/v1/rest'],
+    }).then(() => {
       window.gapi.client.setToken({ access_token: accessToken });
       this.updateGmailStatus();
-      showToast('✅ Gmail connected and API ready!');
+      showToast('✅ Gmail connected successfully!');
       
       // Update API status indicators
       if (window.updateAPIStatus) {
         window.updateAPIStatus();
       }
-    } catch (error) {
-      console.error('Gmail initialization failed:', error);
-      this.isSignedIn = false;
-      this.accessToken = null;
-      showToast('❌ Gmail initialization failed: ' + error.message);
-    }
+    });
   }
 
   signOut() {
@@ -2423,59 +2319,17 @@ class GmailIntegration {
       throw new Error('Not signed in to Gmail');
     }
 
-    // Check if gapi is loaded, try to reload if not
-    if (!window.gapi || !window.gapi.client) {
-      console.log('Gmail API not ready, attempting to reinitialize...');
-      try {
-        await this.handleSignIn(this.accessToken);
-      } catch (reinitError) {
-        throw new Error('Gmail API not loaded. Please try authorizing Gmail again.');
-      }
-      
-      // Check again after reinitialization
-      if (!window.gapi || !window.gapi.client) {
-        throw new Error('Gmail API initialization failed. Please re-authorize Gmail.');
-      }
-    }
-
     try {
-      // Try to get and use the user's Gmail signature
-      let fullBody = body;
-      let signatureAdded = false;
+      const userProfile = {
+        name: localStorage.getItem('user_name') || 'Your Name',
+        phone: localStorage.getItem('user_phone') || '',
+        email: localStorage.getItem('user_email') || ''
+      };
+
+      // Build email with signature
+      const signature = `\n\nBest regards,\n${userProfile.name}\nMad Science Franchise${userProfile.phone ? `\nPhone: ${userProfile.phone}` : ''}${userProfile.email ? `\nEmail: ${userProfile.email}` : ''}`;
       
-      try {
-        const signature = await this.getGmailSignature();
-        if (signature && signature.trim().length > 0) {
-          // Format the Gmail signature better
-          const formattedSignature = signature
-            .replace(/\|/g, '\n')  // Replace | with newlines
-            .replace(/([A-Z]:)/g, '\n$1')  // Add newline before P:, E:, W: patterns
-            .replace(/(\d{3}\s\d{3}\s\d{4})/g, '$1')  // Keep phone numbers intact
-            .split('\n')
-            .map(line => line.trim())
-            .filter(line => line.length > 0)
-            .join('\n');
-          
-          fullBody = body + '\n\n' + formattedSignature;
-          signatureAdded = true;
-        }
-      } catch (error) {
-        console.log('Could not fetch Gmail signature:', error);
-      }
-      
-      // Only add fallback signature if no Gmail signature was added
-      if (!signatureAdded) {
-        const userProfile = {
-          name: localStorage.getItem('user_name') || 'Your Name',
-          phone: localStorage.getItem('user_phone') || '',
-          email: localStorage.getItem('user_email') || ''
-        };
-        
-        if (userProfile.name !== 'Your Name') {
-          const fallbackSignature = `Best regards,\n${userProfile.name}\nMad Science Franchise${userProfile.phone ? `\nPhone: ${userProfile.phone}` : ''}${userProfile.email ? `\nEmail: ${userProfile.email}` : ''}`;
-          fullBody = body + '\n\n' + fallbackSignature;
-        }
-      }
+      const fullBody = body + signature;
 
       // Create email message
       const email = [
@@ -2511,42 +2365,6 @@ class GmailIntegration {
       console.error('Email send failed:', error);
       return { success: false, error: error.message };
     }
-  }
-
-  async getGmailSignature() {
-    try {
-      // Check if gapi is loaded
-      if (!window.gapi || !window.gapi.client) {
-        console.log('Gmail API not loaded, cannot fetch signature');
-        return null;
-      }
-
-      // Get Gmail settings to fetch signature
-      const response = await window.gapi.client.gmail.users.settings.sendAs.list({
-        userId: 'me'
-      });
-      
-      if (response.result && response.result.sendAs && response.result.sendAs.length > 0) {
-        // Find the primary send-as (usually the first one or the one marked as primary)
-        const primarySendAs = response.result.sendAs.find(sendAs => sendAs.isPrimary) || response.result.sendAs[0];
-        
-        if (primarySendAs && primarySendAs.signature) {
-          // Convert HTML signature to plain text and fix formatting
-          let signature = primarySendAs.signature
-            .replace(/<br\s*\/?>/gi, '\n')  // Convert <br> tags to newlines
-            .replace(/<[^>]*>/g, '')        // Remove all other HTML tags
-            .replace(/&nbsp;/g, ' ')        // Convert &nbsp; to spaces
-            .replace(/&amp;/g, '&')         // Convert &amp; to &
-            .replace(/&lt;/g, '<')          // Convert &lt; to <
-            .replace(/&gt;/g, '>')          // Convert &gt; to >
-            .trim();
-          return signature;
-        }
-      }
-    } catch (error) {
-      console.log('Could not fetch Gmail signature:', error);
-    }
-    return null;
   }
 
   logEmailActivity(school, subject) {
@@ -2636,19 +2454,15 @@ function formatDate(date) {
 
 // Helper function to update marker style based on status
 function updateMarkerStyle(marker) {
-  if (marker && marker._rec && typeof marker.setIcon === 'function') {
-    try {
-      const color = getStatusColor(marker._rec);
-      const icon = L.divIcon({
-        className: 'custom-div-icon',
-        html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>`,
-        iconSize: [12, 12],
-        iconAnchor: [6, 6]
-      });
-      marker.setIcon(icon);
-    } catch (error) {
-      console.warn('Could not update marker style:', error);
-    }
+  if (marker && marker._rec) {
+    const color = getStatusColor(marker._rec);
+    const icon = L.divIcon({
+      className: 'custom-div-icon',
+      html: `<div style="background-color: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 3px rgba(0,0,0,0.3);"></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6]
+    });
+    marker.setIcon(icon);
   }
 }
 
@@ -2742,12 +2556,12 @@ function openEmailComposer(schoolName) {
         </div>
         
         <div class="ai-instructions-section" style="margin-bottom: 15px; border: 1px solid #e0e0e0; border-radius: 6px; overflow: hidden;">
-          <button onclick="toggleAIInstructions(this)" style="width: 100%; padding: 10px; background: #f8f9fa; border: none; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center; color: #333;">
+          <button onclick="toggleAIInstructions(this)" style="width: 100%; padding: 10px; background: #f8f9fa; border: none; text-align: left; cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
             <span>🤖 AI Instructions</span>
             <span class="toggle-icon">▼</span>
           </button>
-          <div class="instructions-content" style="padding: 15px; display: none; color: #333; background: #fff;">
-            <textarea data-ai-instructions="true" rows="3" placeholder="Customize instructions for the AI email generator..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; color: #333; background: #fff;"></textarea>
+          <div class="instructions-content" style="padding: 15px; display: none;">
+            <textarea data-ai-instructions="true" rows="3" placeholder="Customize instructions for the AI email generator..." style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
           </div>
         </div>
         
@@ -3046,6 +2860,69 @@ Mad Science Franchise`;
 }
 
 // Natural Language Search
+function performAISearch(query) {
+  const lowerQuery = query.toLowerCase();
+  const results = [];
+  
+  DATA.forEach(rec => {
+    let score = 0;
+    const name = (rec.School || rec.SchoolName || rec.Name || rec.LocationName || rec.Location || '').toLowerCase();
+    const address = (rec.Address || '').toLowerCase();
+    const group = (rec.Group || '').toLowerCase();
+    const notes = (rec.Notes || '').toLowerCase();
+    const contactName = (rec.ContactName || rec.contactName || '').toLowerCase();
+    const contactEmail = (rec.ContactEmail || rec.Email || rec.email || '').toLowerCase();
+    
+    // Check for exact matches
+    if (name.includes(lowerQuery)) score += 10;
+    if (address.includes(lowerQuery)) score += 5;
+    if (group.includes(lowerQuery)) score += 3;
+    if (notes.includes(lowerQuery)) score += 4;
+    if (contactName.includes(lowerQuery)) score += 6;
+    if (contactEmail.includes(lowerQuery)) score += 6;
+    
+    // Check for individual words
+    const words = lowerQuery.split(' ');
+    words.forEach(word => {
+      if (word.length > 2) {
+        if (name.includes(word)) score += 2;
+        if (address.includes(word)) score += 1;
+        if (notes.includes(word)) score += 1;
+        if (contactName.includes(word)) score += 2;
+      }
+    });
+    
+    // Enhanced status-based queries
+    const status = normalizeStatus(rec.Status);
+    if (lowerQuery.includes('uncontacted') && status === 'none') score += 8;
+    if (lowerQuery.includes('first outreach') && status === 'firstoutreach') score += 8;
+    if (lowerQuery.includes('replied') && status === 'replied') score += 8;
+    if (lowerQuery.includes('in progress') && status === 'inprogress') score += 8;
+    if (lowerQuery.includes('current') && status === 'current') score += 8;
+    if (lowerQuery.includes('uninterested') && status === 'uninterested') score += 8;
+    if (lowerQuery.includes('staff') && status === 'staff') score += 8;
+    
+    // CRM-specific queries
+    if (lowerQuery.includes('with contact') && contactName.length > 0) score += 6;
+    if (lowerQuery.includes('with email') && contactEmail.length > 0) score += 6;
+    if (lowerQuery.includes('with notes') && notes.length > 0) score += 6;
+    if (lowerQuery.includes('stale')) {
+      const daysSince = daysSinceLastContact(rec);
+      if (daysSince !== null && daysSince > 14) score += 8;
+    }
+    if (lowerQuery.includes('recent activity')) {
+      const daysSince = daysSinceLastContact(rec);
+      if (daysSince !== null && daysSince <= 7) score += 8;
+    }
+    
+    if (score > 0) {
+      results.push({rec, score});
+    }
+  });
+  
+  results.sort((a,b) => b.score - a.score);
+  return results.slice(0, 10).map(r => r.rec);
+}
 
 /* Init */
 async function init(){
@@ -3086,354 +2963,6 @@ async function init(){
   
   log('init ← CRM system ready');
 }
-
-/* Profile Management System */
-// Multi-user Profile Management
-class UserProfileManager {
-  constructor() {
-    this.currentProfile = null;
-    this.loadProfiles();
-  }
-
-  loadProfiles() {
-    const profiles = localStorage.getItem('user_profiles');
-    this.profiles = profiles ? JSON.parse(profiles) : {};
-    
-    // Migrate existing single user data to profile system
-    if (!localStorage.getItem('profiles_migrated') && Object.keys(this.profiles).length === 0) {
-      const existingUserName = localStorage.getItem('user_name');
-      if (existingUserName && existingUserName !== 'Your Name') {
-        this.profiles[existingUserName] = {
-          name: existingUserName,
-          phone: localStorage.getItem('user_phone') || '',
-          email: localStorage.getItem('user_email') || '',
-          ai_api_key: localStorage.getItem('ai_api_key') || '',
-          gmail_api_key: localStorage.getItem('gmail_api_key') || '',
-          gmail_client_id: localStorage.getItem('gmail_client_id') || '',
-          gmail_access_token: localStorage.getItem('gmail_access_token') || '',
-          ai_email_prompt: localStorage.getItem('ai_email_prompt') || '',
-          ai_system_prompt: localStorage.getItem('ai_system_prompt') || ''
-        };
-        this.currentProfile = existingUserName;
-        this.saveProfiles();
-      }
-      localStorage.setItem('profiles_migrated', 'true');
-    }
-    
-    // Load current profile from storage
-    this.currentProfile = localStorage.getItem('current_profile') || null;
-  }
-
-  saveProfiles() {
-    localStorage.setItem('user_profiles', JSON.stringify(this.profiles));
-    if (this.currentProfile) {
-      localStorage.setItem('current_profile', this.currentProfile);
-    }
-  }
-
-  createProfile(name, phone = '', email = '') {
-    if (this.profiles[name]) {
-      throw new Error('Profile already exists');
-    }
-    
-    this.profiles[name] = {
-      name,
-      phone,
-      email,
-      ai_api_key: '',
-      gmail_api_key: '',
-      gmail_client_id: '',
-      gmail_access_token: '',
-      ai_email_prompt: '',
-      ai_system_prompt: ''
-    };
-    
-    this.saveProfiles();
-    this.updateUI();
-    return this.profiles[name];
-  }
-
-  switchToProfile(name) {
-    if (!this.profiles[name]) {
-      throw new Error('Profile not found');
-    }
-    
-    const profile = this.profiles[name];
-    this.currentProfile = name;
-    
-    // Update localStorage with profile data
-    localStorage.setItem('user_name', profile.name);
-    localStorage.setItem('user_phone', profile.phone);
-    localStorage.setItem('user_email', profile.email);
-    localStorage.setItem('ai_api_key', profile.ai_api_key);
-    localStorage.setItem('gmail_api_key', profile.gmail_api_key);
-    localStorage.setItem('gmail_client_id', profile.gmail_client_id);
-    localStorage.setItem('gmail_access_token', profile.gmail_access_token);
-    localStorage.setItem('ai_email_prompt', profile.ai_email_prompt);
-    localStorage.setItem('ai_system_prompt', profile.ai_system_prompt);
-    
-    // Update AI context and refresh system prompt
-    if (window.enhancedAI) {
-      enhancedAI.context.apiKey = profile.ai_api_key;
-      // Update system prompt to use new user name
-      enhancedAI.customPrompts.systemInstructions = enhancedAI.getDefaultSystemPrompt();
-    }
-    
-    // Update Gmail integration
-    if (window.gmailIntegration) {
-      gmailIntegration.config.apiKey = profile.gmail_api_key;
-      gmailIntegration.config.clientId = profile.gmail_client_id;
-      if (profile.gmail_access_token) {
-        gmailIntegration.handleSignIn(profile.gmail_access_token);
-      }
-    }
-    
-    this.saveProfiles();
-    this.updateUI();
-    if (window.updateAPIStatus) updateAPIStatus();
-    if (window.initializeAIChat) initializeAIChat(true); // Refresh AI chat with new profile
-    
-    showToast(`✅ Switched to profile: ${name}`);
-  }
-
-  deleteProfile(name) {
-    if (name === this.currentProfile) {
-      throw new Error('Cannot delete active profile');
-    }
-    
-    delete this.profiles[name];
-    this.saveProfiles();
-    this.updateUI();
-  }
-
-  updateCurrentProfileData() {
-    if (this.currentProfile && this.profiles[this.currentProfile]) {
-      const profile = this.profiles[this.currentProfile];
-      profile.phone = localStorage.getItem('user_phone') || '';
-      profile.email = localStorage.getItem('user_email') || '';
-      profile.ai_api_key = localStorage.getItem('ai_api_key') || '';
-      profile.gmail_api_key = localStorage.getItem('gmail_api_key') || '';
-      profile.gmail_client_id = localStorage.getItem('gmail_client_id') || '';
-      profile.gmail_access_token = localStorage.getItem('gmail_access_token') || '';
-      profile.ai_email_prompt = localStorage.getItem('ai_email_prompt') || '';
-      profile.ai_system_prompt = localStorage.getItem('ai_system_prompt') || '';
-      this.saveProfiles();
-    }
-  }
-
-  updateUI() {
-    const select = document.getElementById('userProfileSelect');
-    const display = document.getElementById('current-user-display');
-    
-    if (select) {
-      select.innerHTML = '<option value="">Select User Profile</option>';
-      Object.keys(this.profiles).forEach(name => {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        option.selected = name === this.currentProfile;
-        select.appendChild(option);
-      });
-    }
-    
-    if (display) {
-      display.textContent = this.currentProfile ? `Active: ${this.currentProfile}` : 'No user selected';
-    }
-  }
-}
-
-// Initialize profile manager
-const profileManager = new UserProfileManager();
-
-// Global functions for profile management
-window.createNewProfile = () => {
-  const name = prompt('Enter name for new profile:');
-  if (!name) return;
-  
-  const phone = prompt('Enter phone number (optional):') || '';
-  const email = prompt('Enter email address (optional):') || '';
-  
-  try {
-    profileManager.createProfile(name.trim(), phone.trim(), email.trim());
-    showToast(`✅ Created profile: ${name}`);
-  } catch (error) {
-    showToast(`❌ ${error.message}`);
-  }
-};
-
-window.switchProfile = () => {
-  const select = document.getElementById('userProfileSelect');
-  const selectedProfile = select.value;
-  
-  if (!selectedProfile) {
-    showToast('❌ Please select a profile first');
-    return;
-  }
-  
-  try {
-    profileManager.switchToProfile(selectedProfile);
-  } catch (error) {
-    showToast(`❌ ${error.message}`);
-  }
-};
-
-window.deleteProfile = () => {
-  const select = document.getElementById('userProfileSelect');
-  const selectedProfile = select.value;
-  
-  if (!selectedProfile) {
-    showToast('❌ Please select a profile to delete');
-    return;
-  }
-  
-  if (!confirm(`Are you sure you want to delete profile "${selectedProfile}"?`)) {
-    return;
-  }
-  
-  try {
-    profileManager.deleteProfile(selectedProfile);
-    showToast(`✅ Deleted profile: ${selectedProfile}`);
-  } catch (error) {
-    showToast(`❌ ${error.message}`);
-  }
-};
-
-// Configuration functions (moved to global scope)
-window.configureClaudeAPI = () => {
-  const currentKey = localStorage.getItem('ai_api_key') || '';
-  const newKey = prompt('Enter your Claude API key from https://console.anthropic.com:', currentKey);
-  
-  if (newKey !== null) { // User didn't cancel
-    if (newKey.trim()) {
-      localStorage.setItem('ai_api_key', newKey.trim());
-      if (window.enhancedAI) enhancedAI.context.apiKey = newKey.trim();
-      showToast('✅ Claude API key saved successfully!');
-      if (window.initializeAIChat) initializeAIChat(true); // Refresh welcome message
-      if (window.updateAPIStatus) updateAPIStatus(); // Update status indicator
-      if (window.profileManager) profileManager.updateCurrentProfileData(); // Save to current profile
-    } else {
-      localStorage.removeItem('ai_api_key');
-      if (window.enhancedAI) enhancedAI.context.apiKey = '';
-      showToast('🔑 Claude API key cleared');
-      if (window.initializeAIChat) initializeAIChat(true); // Refresh welcome message
-      if (window.updateAPIStatus) updateAPIStatus(); // Update status indicator
-      if (window.profileManager) profileManager.updateCurrentProfileData(); // Save to current profile
-    }
-  }
-};
-
-window.configureGmailCredentials = () => {
-  const currentApiKey = localStorage.getItem('gmail_api_key') || '';
-  const currentClientId = localStorage.getItem('gmail_client_id') || '';
-  
-  const apiKey = prompt('Enter your Google API Key:', currentApiKey);
-  if (apiKey === null) return; // User cancelled
-  
-  const clientId = prompt('Enter your Google Client ID (format: xxx.apps.googleusercontent.com):', currentClientId);
-  if (clientId === null) return; // User cancelled
-  
-  if (apiKey && clientId) {
-    // Store in localStorage first
-    localStorage.setItem('gmail_api_key', apiKey);
-    localStorage.setItem('gmail_client_id', clientId);
-    
-    // Update gmailIntegration if available
-    if (window.gmailIntegration) {
-      gmailIntegration.config.apiKey = apiKey;
-      gmailIntegration.config.clientId = clientId;
-      gmailIntegration.initialize(); // Reinitialize with new config
-    }
-    
-    showToast('✅ Gmail credentials saved! Now click "🔑 Authorize" to connect.');
-    if (window.updateAPIStatus) updateAPIStatus(); // Update status indicator
-    if (window.profileManager) profileManager.updateCurrentProfileData(); // Save to current profile
-  } else {
-    showToast('⚠️ Both API Key and Client ID are required');
-  }
-};
-
-window.authorizeGmail = async () => {
-  // Check if running from file:// protocol
-  if (window.location.protocol === 'file:') {
-    const useServer = confirm(
-      '⚠️ Gmail OAuth doesn\'t work with file:// protocol.\n\n' +
-      'To fix this:\n' +
-      '1. Run "python serve.py" or "start_server.bat"\n' +
-      '2. Open http://localhost:8000 instead\n' +
-      '3. Add http://localhost:8000 to Google Cloud Console origins\n\n' +
-      'Click OK to continue anyway (manual auth), or Cancel to stop.'
-    );
-    
-    if (!useServer) {
-      showToast('📖 Check GMAIL_SETUP.md for detailed instructions');
-      return;
-    }
-  }
-
-  // Check both the config object and localStorage directly
-  const apiKey = (window.gmailIntegration?.config?.apiKey) || localStorage.getItem('gmail_api_key');
-  const clientId = (window.gmailIntegration?.config?.clientId) || localStorage.getItem('gmail_client_id');
-  
-  if (!apiKey || !clientId) {
-    showToast('⚠️ Configure Gmail credentials first using "📧 Gmail Setup"');
-    return;
-  }
-  
-  // Ensure gmailIntegration config is up to date
-  if (window.gmailIntegration) {
-    gmailIntegration.config.apiKey = apiKey;
-    gmailIntegration.config.clientId = clientId;
-  }
-
-  try {
-    showToast('🔑 Starting Gmail authorization...');
-    console.log('Gmail config check:', { apiKey: !!apiKey, clientId: !!clientId });
-    
-    await gmailIntegration.initialize();
-    await gmailIntegration.requestAccessToken();
-  } catch (error) {
-    console.error('Gmail authorization error:', error);
-    showToast('❌ Authorization failed: ' + error.message);
-    
-    if (window.location.protocol === 'file:') {
-      setTimeout(() => {
-        showToast('💡 Tip: Use "python serve.py" to run on localhost:8000 for proper OAuth');
-      }, 2000);
-    }
-  }
-};
-
-window.setUserProfile = () => {
-  const currentName = localStorage.getItem('user_name') || '';
-  const currentPhone = localStorage.getItem('user_phone') || '';
-  const currentEmail = localStorage.getItem('user_email') || '';
-  
-  // Show current profile in the prompt
-  const displayName = currentName === 'Your Name' ? '' : currentName;
-  
-  const name = prompt('Enter your name (for email signatures):', displayName);
-  if (name === null) return; // User cancelled
-  
-  const phone = prompt('Enter your phone number (optional):', currentPhone);
-  if (phone === null) return; // User cancelled
-  
-  const email = prompt('Enter your email address (optional):', currentEmail);
-  if (email === null) return; // User cancelled
-  
-  // Save the values
-  localStorage.setItem('user_name', name.trim() || 'Your Name');
-  localStorage.setItem('user_phone', phone.trim() || '');
-  localStorage.setItem('user_email', email.trim() || '');
-  
-  showToast('✅ User profile updated!');
-  if (window.updateAPIStatus) updateAPIStatus(); // Update status indicator
-  if (window.profileManager) profileManager.updateCurrentProfileData(); // Save to current profile
-  
-  // Update AI system prompt to use new user name
-  if (window.enhancedAI) {
-    enhancedAI.customPrompts.systemInstructions = enhancedAI.getDefaultSystemPrompt();
-  }
-};
 
 /* Enhanced UI Event Handlers */
 document.addEventListener('DOMContentLoaded',()=>{
@@ -3701,240 +3230,314 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
   }
 
-  // Multi-user Profile Management
-  class UserProfileManager {
-    constructor() {
-      this.currentProfile = null;
-      this.loadProfiles();
-      this.initializeUI();
-    }
-
-    loadProfiles() {
-      const profiles = localStorage.getItem('user_profiles');
-      this.profiles = profiles ? JSON.parse(profiles) : {};
-      
-      // Migrate existing single user data to profile system
-      if (!localStorage.getItem('profiles_migrated') && Object.keys(this.profiles).length === 0) {
-        const existingUserName = localStorage.getItem('user_name');
-        if (existingUserName && existingUserName !== 'Your Name') {
-          this.profiles[existingUserName] = {
-            name: existingUserName,
-            phone: localStorage.getItem('user_phone') || '',
-            email: localStorage.getItem('user_email') || '',
-            ai_api_key: localStorage.getItem('ai_api_key') || '',
-            gmail_api_key: localStorage.getItem('gmail_api_key') || '',
-            gmail_client_id: localStorage.getItem('gmail_client_id') || '',
-            gmail_access_token: localStorage.getItem('gmail_access_token') || '',
-            ai_email_prompt: localStorage.getItem('ai_email_prompt') || '',
-            ai_system_prompt: localStorage.getItem('ai_system_prompt') || ''
-          };
-          this.currentProfile = existingUserName;
-          this.saveProfiles();
-        }
-        localStorage.setItem('profiles_migrated', 'true');
-      }
-      
-      // Load current profile from storage
-      this.currentProfile = localStorage.getItem('current_profile') || null;
-    }
-
-    saveProfiles() {
-      localStorage.setItem('user_profiles', JSON.stringify(this.profiles));
-      if (this.currentProfile) {
-        localStorage.setItem('current_profile', this.currentProfile);
-      }
-    }
-
-    createProfile(name, phone = '', email = '') {
-      if (this.profiles[name]) {
-        throw new Error('Profile already exists');
-      }
-      
-      this.profiles[name] = {
-        name,
-        phone,
-        email,
-        ai_api_key: '',
-        gmail_api_key: '',
-        gmail_client_id: '',
-        gmail_access_token: '',
-        ai_email_prompt: '',
-        ai_system_prompt: ''
-      };
-      
-      this.saveProfiles();
-      this.updateUI();
-      return this.profiles[name];
-    }
-
-    switchToProfile(name) {
-      if (!this.profiles[name]) {
-        throw new Error('Profile not found');
-      }
-      
-      const profile = this.profiles[name];
-      this.currentProfile = name;
-      
-      // Update localStorage with profile data
-      localStorage.setItem('user_name', profile.name);
-      localStorage.setItem('user_phone', profile.phone);
-      localStorage.setItem('user_email', profile.email);
-      localStorage.setItem('ai_api_key', profile.ai_api_key);
-      localStorage.setItem('gmail_api_key', profile.gmail_api_key);
-      localStorage.setItem('gmail_client_id', profile.gmail_client_id);
-      localStorage.setItem('gmail_access_token', profile.gmail_access_token);
-      localStorage.setItem('ai_email_prompt', profile.ai_email_prompt);
-      localStorage.setItem('ai_system_prompt', profile.ai_system_prompt);
-      
-      // Update AI context
-      if (enhancedAI) {
-        enhancedAI.context.apiKey = profile.ai_api_key;
-      }
-      
-      // Update Gmail integration
-      if (gmailIntegration) {
-        gmailIntegration.config.apiKey = profile.gmail_api_key;
-        gmailIntegration.config.clientId = profile.gmail_client_id;
-        if (profile.gmail_access_token) {
-          gmailIntegration.handleSignIn(profile.gmail_access_token);
-        }
-      }
-      
-      this.saveProfiles();
-      this.updateUI();
-      updateAPIStatus();
-      initializeAIChat(true); // Refresh AI chat with new profile
-      
-      showToast(`✅ Switched to profile: ${name}`);
-    }
-
-    deleteProfile(name) {
-      if (name === this.currentProfile) {
-        throw new Error('Cannot delete active profile');
-      }
-      
-      delete this.profiles[name];
-      this.saveProfiles();
-      this.updateUI();
-    }
-
-    updateCurrentProfileData() {
-      if (this.currentProfile && this.profiles[this.currentProfile]) {
-        const profile = this.profiles[this.currentProfile];
-        profile.phone = localStorage.getItem('user_phone') || '';
-        profile.email = localStorage.getItem('user_email') || '';
-        profile.ai_api_key = localStorage.getItem('ai_api_key') || '';
-        profile.gmail_api_key = localStorage.getItem('gmail_api_key') || '';
-        profile.gmail_client_id = localStorage.getItem('gmail_client_id') || '';
-        profile.gmail_access_token = localStorage.getItem('gmail_access_token') || '';
-        profile.ai_email_prompt = localStorage.getItem('ai_email_prompt') || '';
-        profile.ai_system_prompt = localStorage.getItem('ai_system_prompt') || '';
-        this.saveProfiles();
-      }
-    }
-
-    initializeUI() {
-      this.updateUI();
-      
-      // Load current profile if exists
-      if (this.currentProfile && this.profiles[this.currentProfile]) {
-        this.switchToProfile(this.currentProfile);
-      }
-    }
-
-    updateUI() {
-      const select = document.getElementById('userProfileSelect');
-      const display = document.getElementById('current-user-display');
-      
-      if (select) {
-        select.innerHTML = '<option value="">Select User Profile</option>';
-        Object.keys(this.profiles).forEach(name => {
-          const option = document.createElement('option');
-          option.value = name;
-          option.textContent = name;
-          option.selected = name === this.currentProfile;
-          select.appendChild(option);
-        });
-      }
-      
-      if (display) {
-        display.textContent = this.currentProfile ? `Active: ${this.currentProfile}` : 'No user selected';
-      }
-    }
-  }
-
-  // Initialize profile manager
-  const profileManager = new UserProfileManager();
-
-  // Global functions for profile management
-  window.createNewProfile = () => {
-    const name = prompt('Enter name for new profile:');
-    if (!name) return;
-    
-    const phone = prompt('Enter phone number (optional):') || '';
-    const email = prompt('Enter email address (optional):') || '';
-    
-    try {
-      profileManager.createProfile(name.trim(), phone.trim(), email.trim());
-      showToast(`✅ Created profile: ${name}`);
-    } catch (error) {
-      showToast(`❌ ${error.message}`);
-    }
-  };
-
-  window.switchProfile = () => {
-    const select = document.getElementById('userProfileSelect');
-    const selectedProfile = select.value;
-    
-    if (!selectedProfile) {
-      showToast('❌ Please select a profile first');
-      return;
-    }
-    
-    try {
-      profileManager.switchToProfile(selectedProfile);
-    } catch (error) {
-      showToast(`❌ ${error.message}`);
-    }
-  };
-
-  window.deleteProfile = () => {
-    const select = document.getElementById('userProfileSelect');
-    const selectedProfile = select.value;
-    
-    if (!selectedProfile) {
-      showToast('❌ Please select a profile to delete');
-      return;
-    }
-    
-    if (!confirm(`Are you sure you want to delete profile "${selectedProfile}"?`)) {
-      return;
-    }
-    
-    try {
-      profileManager.deleteProfile(selectedProfile);
-      showToast(`✅ Deleted profile: ${selectedProfile}`);
-    } catch (error) {
-      showToast(`❌ ${error.message}`);
-    }
-  };
-
-  // Override existing configuration functions to update current profile
-  const originalConfigureFunctions = {
-    setUserProfile: window.setUserProfile,
-    configureClaudeAPI: window.configureClaudeAPI,
-    configureGmailCredentials: window.configureGmailCredentials
-  };
-
   // Initialize everything
   initializeUserProfile();
   updateAPIStatus();
 
+  // Configuration functions
+  window.configureClaudeAPI = () => {
+    const currentKey = localStorage.getItem('ai_api_key') || '';
+    const newKey = prompt('Enter your Claude API key from https://console.anthropic.com:', currentKey);
+    
+    if (newKey !== null) { // User didn't cancel
+      if (newKey.trim()) {
+        localStorage.setItem('ai_api_key', newKey.trim());
+        enhancedAI.context.apiKey = newKey.trim();
+        showToast('✅ Claude API key saved successfully!');
+        initializeAIChat(); // Refresh welcome message
+        updateAPIStatus(); // Update status indicator
+      } else {
+        localStorage.removeItem('ai_api_key');
+        enhancedAI.context.apiKey = '';
+        showToast('🔑 Claude API key cleared');
+        initializeAIChat(); // Refresh welcome message
+        updateAPIStatus(); // Update status indicator
+      }
+    }
+  };
 
+  window.configureGmailCredentials = () => {
+    const currentApiKey = localStorage.getItem('gmail_api_key') || '';
+    const currentClientId = localStorage.getItem('gmail_client_id') || '';
+    
+    const apiKey = prompt('Enter your Google API Key:', currentApiKey);
+    if (apiKey === null) return; // User cancelled
+    
+    const clientId = prompt('Enter your Google Client ID (format: xxx.apps.googleusercontent.com):', currentClientId);
+    if (clientId === null) return; // User cancelled
+    
+    if (apiKey && clientId) {
+      gmailIntegration.configure(apiKey, clientId);
+      showToast('✅ Gmail credentials saved! Now click "🔑 Authorize" to connect.');
+      updateAPIStatus(); // Update status indicator
+    } else {
+      showToast('⚠️ Both API Key and Client ID are required');
+    }
+  };
 
+  window.authorizeGmail = async () => {
+    // Check if running from file:// protocol
+    if (window.location.protocol === 'file:') {
+      const useServer = confirm(
+        '⚠️ Gmail OAuth doesn\'t work with file:// protocol.\n\n' +
+        'To fix this:\n' +
+        '1. Run "python serve.py" or "start_server.bat"\n' +
+        '2. Open http://localhost:8000 instead\n' +
+        '3. Add http://localhost:8000 to Google Cloud Console origins\n\n' +
+        'Click OK to continue anyway (manual auth), or Cancel to stop.'
+      );
+      
+      if (!useServer) {
+        showToast('📖 Check GMAIL_SETUP.md for detailed instructions');
+        return;
+      }
+    }
 
+    if (!gmailIntegration.config.apiKey || !gmailIntegration.config.clientId) {
+      showToast('⚠️ Configure Gmail credentials first using "📧 Gmail Setup"');
+      return;
+    }
 
+    try {
+      showToast('🔑 Starting Gmail authorization...');
+      await gmailIntegration.initialize();
+      await gmailIntegration.requestAccessToken();
+    } catch (error) {
+      console.error('Gmail authorization error:', error);
+      showToast('❌ Authorization failed: ' + error.message);
+      
+      if (window.location.protocol === 'file:') {
+        setTimeout(() => {
+          showToast('💡 Tip: Use "python serve.py" to run on localhost:8000 for proper OAuth');
+        }, 2000);
+      }
+    }
+  };
 
+  window.setUserProfile = () => {
+    const currentName = localStorage.getItem('user_name') || '';
+    const currentPhone = localStorage.getItem('user_phone') || '';
+    const currentEmail = localStorage.getItem('user_email') || '';
+    
+    // Show current profile in the prompt
+    const displayName = currentName === 'Your Name' ? '' : currentName;
+    
+    const name = prompt('Enter your name (for email signatures):', displayName);
+    if (name === null) return; // User cancelled
+    
+    const phone = prompt('Enter your phone number (optional):', currentPhone);
+    if (phone === null) return; // User cancelled
+    
+    const email = prompt('Enter your email address (optional):', currentEmail);
+    if (email === null) return; // User cancelled
+    
+    // Save the values
+    localStorage.setItem('user_name', name.trim() || 'Your Name');
+    localStorage.setItem('user_phone', phone.trim() || '');
+    localStorage.setItem('user_email', email.trim() || '');
+    
+    showToast('✅ User profile updated!');
+    updateAPIStatus(); // Update status indicator
+  };
+
+  // Enhanced AI Search
+  document.getElementById('btnAISearch').addEventListener('click', () => {
+    const query = document.getElementById('aiSearchBox').value.trim();
+    if (!query) return;
+    
+    const results = performAISearch(query);
+    if (results.length === 0) {
+      showToast('No results found for: ' + query, 'error');
+      return;
+    }
+    
+    // Apply search results as filter
+    const resultIds = new Set(results.map(r => r.Id || `${r.School}_${r.Address}`));
+    baseVisiblePredicate = function(rec) {
+      const recId = rec.Id || `${rec.School}_${rec.Address}`;
+      return resultIds.has(recId);
+    };
+    applyFilters();
+    
+    showToast(`Found ${results.length} results for "${query}"`);
+    
+    // Zoom to first result - Fix: Use proper marker finding
+    const first = markers.find(m => {
+      if (!m || !m._rec) return false;
+      const recId = m._rec.Id || `${m._rec.School}_${m._rec.Address}`;
+      return resultIds.has(recId);
+    });
+    if (first) map.setView(first.getLatLng(), 12);
+  });
+
+  // Enhanced AI Analysis buttons
+  document.getElementById('btnAnalyzeTerritory').addEventListener('click', () => {
+    const groupSel = document.getElementById('groupSel');
+    const hasGroups = groupSel.selectedOptions.length > 0;
+    
+    if (!currentTerritory && !hasGroups) {
+      showToast('Please select a territory or group first', 'error');
+      return;
+    }
+    
+    updateInsights();
+    showToast('CRM Analysis complete - check Insights panel');
+  });
+
+  document.getElementById('btnPredictGrowth').addEventListener('click', () => {
+    const visible = markers.filter(m => {
+      const st = normalizeStatus(m._rec.Status || m._rec.status);
+      if (st === 'staff') return false;
+      if (currentTerritory) return territoryVisible(m._rec);
+      return baseVisiblePredicate(m._rec) && st !== 'staff';
+    });
+    
+    const statusDist = {none:0, firstoutreach:0, replied:0, inprogress:0, current:0, uninterested:0};
+    visible.forEach(m => {
+      const st = normalizeStatus(m._rec.Status);
+      statusDist[st]++;
+    });
+    
+    const totalPipeline = statusDist.inprogress + statusDist.replied;
+    const totalUncontacted = statusDist.none + statusDist.firstoutreach;
+    const growthPotential = visible.length > 0 ? Math.round(totalUncontacted / visible.length * 100) : 0;
+    
+    // Build context
+    const groupSel = document.getElementById('groupSel');
+    const selectedGroups = Array.from(groupSel.selectedOptions).map(o => o.value);
+    let context = '';
+    if (selectedGroups.length > 0) {
+      context = ` for ${selectedGroups.join(', ')}`;
+    }
+    if (currentTerritory) {
+      context += ` in ${currentTerritory.name}`;
+    }
+    
+    const prediction = `📈 Enhanced CRM Growth Prediction${context}:
+
+Current Pipeline Analysis (excluding staff):
+• Active Pipeline: ${totalPipeline} locations
+  - In Progress: ${statusDist.inprogress} (likely to close: ${Math.round(statusDist.inprogress * 0.7)})
+  - Customer Replied: ${statusDist.replied} (potential: ${Math.round(statusDist.replied * 0.4)})
+  
+• Growth Potential: ${totalUncontacted} locations (${growthPotential}%)
+  - First Outreach: ${statusDist.firstoutreach} (warm leads)
+  - Uncontacted: ${statusDist.none} (cold prospects)
+
+• Current Clients: ${statusDist.current} (retention focus)
+
+Projected 90-Day Outcomes:
+• Probable Conversions: ${Math.round(statusDist.inprogress * 0.7 + statusDist.replied * 0.4)} new clients
+• Potential Additional: ${Math.round(statusDist.firstoutreach * 0.3 + statusDist.none * 0.15)} with focused effort
+• Total Projected Growth: ${Math.round(statusDist.inprogress * 0.7 + statusDist.replied * 0.4 + statusDist.firstoutreach * 0.3 + statusDist.none * 0.15)} new clients
+
+Strategic Recommendation: ${
+  totalPipeline > 10 ? 'Focus on closing active pipeline first' : 
+  statusDist.firstoutreach > 5 ? 'Nurture warm leads from first outreach' :
+  growthPotential > 40 ? 'High growth territory - increase outreach intensity' : 
+  growthPotential > 20 ? 'Moderate opportunity - systematic outreach program' : 
+  'Mature territory - focus on retention and referrals'
+}
+
+Next Actions:
+1. ${totalPipeline > 0 ? `Follow up on ${totalPipeline} active pipeline opportunities` : 'Build pipeline with targeted outreach'}
+2. ${statusDist.none > 5 ? `Launch outreach campaign for ${statusDist.none} uncontacted schools` : 'Maintain current contact schedule'}
+3. ${statusDist.current > 0 ? `Retention strategy for ${statusDist.current} current clients` : 'Focus on initial client acquisition'}`;
+    
+    // Show in AI chat
+    document.getElementById('aiPanel').classList.add('active');
+    const chat = document.getElementById('aiChat');
+    chat.innerHTML += `<div class="ai-message assistant">${prediction}</div>`;
+    chat.scrollTop = chat.scrollHeight;
+  });
+
+  document.getElementById('btnGenerateReport').addEventListener('click', async () => {
+    const report = [];
+    report.push(`📊 **CRM Territory Analysis Report**`);
+    report.push(`Generated: ${new Date().toLocaleDateString()}\n`);
+    
+    // Enhanced statistics with CRM data
+    const businessData = DATA.filter(r => normalizeStatus(r.Status || r.status) !== 'staff');
+    const staffData = DATA.filter(r => normalizeStatus(r.Status || r.status) === 'staff');
+    
+    report.push(`**Overall CRM Statistics:**`);
+    report.push(`• Total Business Locations: ${businessData.length} (+ ${staffData.length} staff excluded)`);
+    report.push(`• Active Territories: ${TERRITORIES.length}`);
+    
+    // Enhanced data quality metrics
+    const withContactName = businessData.filter(r => (r.ContactName || r.contactName || '').trim().length > 0).length;
+    const withContactEmail = businessData.filter(r => (r.ContactEmail || r.Email || r.email || '').trim().length > 0).length;
+    const withNotes = businessData.filter(r => (r.Notes || r.notes || '').trim().length > 0).length;
+    const withLastModified = businessData.filter(r => (r.LastModified || r.lastModified || '').trim().length > 0).length;
+    
+    report.push(`\n**CRM Data Quality:**`);
+    report.push(`• Contact Names: ${withContactName}/${businessData.length} (${Math.round(withContactName/businessData.length*100)}%)`);
+    report.push(`• Contact Emails: ${withContactEmail}/${businessData.length} (${Math.round(withContactEmail/businessData.length*100)}%)`);
+    report.push(`• Locations with Notes: ${withNotes}/${businessData.length} (${Math.round(withNotes/businessData.length*100)}%)`);
+    report.push(`• Activity Tracking: ${withLastModified}/${businessData.length} (${Math.round(withLastModified/businessData.length*100)}%)`);
+    
+    // Enhanced status breakdown
+    const statusDist = {none:0, firstoutreach:0, replied:0, inprogress:0, current:0, uninterested:0};
+    businessData.forEach(r => {
+      const st = normalizeStatus(r.Status || r.status);
+      statusDist[st]++;
+    });
+    
+    report.push(`\n**CRM Pipeline Status:**`);
+    report.push(`• Uncontacted: ${statusDist.none} (${Math.round(statusDist.none/businessData.length*100)}%)`);
+    report.push(`• First Outreach: ${statusDist.firstoutreach} (${Math.round(statusDist.firstoutreach/businessData.length*100)}%)`);
+    report.push(`• Customer Replied: ${statusDist.replied} (${Math.round(statusDist.replied/businessData.length*100)}%)`);
+    report.push(`• In Progress: ${statusDist.inprogress} (${Math.round(statusDist.inprogress/businessData.length*100)}%)`);
+    report.push(`• Current Clients: ${statusDist.current} (${Math.round(statusDist.current/businessData.length*100)}%)`);
+    report.push(`• Uninterested: ${statusDist.uninterested} (${Math.round(statusDist.uninterested/businessData.length*100)}%)`);
+    
+    // Conversion metrics
+    const conversionRate = Math.round(statusDist.current / businessData.length * 100);
+    const pipelineRate = Math.round((statusDist.inprogress + statusDist.replied) / businessData.length * 100);
+    report.push(`\n**Conversion Metrics:**`);
+    report.push(`• Overall Conversion Rate: ${conversionRate}%`);
+    report.push(`• Active Pipeline Rate: ${pipelineRate}%`);
+    report.push(`• Response Rate: ${Math.round((statusDist.replied + statusDist.inprogress + statusDist.current) / (businessData.length - statusDist.none) * 100)}%`);
+    
+    // Strategic recommendations
+    report.push(`\n**Strategic CRM Recommendations:**`);
+    if (withContactName < businessData.length * 0.5) {
+      report.push(`• HIGH PRIORITY: Improve contact data quality (only ${Math.round(withContactName/businessData.length*100)}% have contact names)`);
+    }
+    if (statusDist.inprogress > businessData.length * 0.1) {
+      report.push(`• SALES FOCUS: Close ${statusDist.inprogress} in-progress opportunities`);
+    }
+    if (statusDist.replied > businessData.length * 0.15) {
+      report.push(`• FOLLOW-UP FOCUS: Nurture ${statusDist.replied} schools that have replied`);
+    }
+    if (statusDist.none > businessData.length * 0.3) {
+      report.push(`• GROWTH OPPORTUNITY: ${statusDist.none} uncontacted schools represent significant expansion potential`);
+    }
+    if (withNotes < businessData.length * 0.4) {
+      report.push(`• DOCUMENTATION: Improve activity tracking - only ${Math.round(withNotes/businessData.length*100)}% have notes`);
+    }
+    
+    report.push(`\n**Next Actions:**`);
+    report.push(`• Implement systematic follow-up schedule based on status`);
+    report.push(`• Focus data collection on missing contact information`);
+    report.push(`• Track activity timing for all customer interactions`);
+    report.push(`• Develop territory-specific strategies based on pipeline density`);
+    
+    const reportText = report.join('\n');
+    
+    // Create and download report
+    const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `crm-analysis-report-${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('Enhanced CRM Report generated and downloaded');
+  });
 
   // Initialize Gmail integration
   if (gmailIntegration.config.apiKey && gmailIntegration.config.clientId) {
@@ -4340,100 +3943,23 @@ window.previewStatusChange = function(criteria) {
   `;
 };
 
-window.executeBatchStatusChange = async function(criteria, newStatus) {
+window.executeBatchStatusChange = function(criteria, newStatus) {
   const schools = findSchoolsByCriteria(criteria);
   
-  if (schools.length === 0) {
-    showToast('❌ No schools found matching criteria');
-    return;
-  }
-  
-  // Close modal first
-  document.querySelector('[style*="position: fixed"]')?.remove();
-  
-  // STEP 1: Update all local data immediately
-  const timestamp = new Date().toISOString();
-  const originalStatuses = new Map();
-  
+  // Update all schools
+  let updatedCount = 0;
   schools.forEach(school => {
-    originalStatuses.set(school, school.Status);
+    const originalStatus = school.Status;
     school.Status = newStatus;
-    school.LastModified = timestamp;
+    updatedCount++;
   });
   
-  // STEP 2: Refresh UI immediately to show changes
+  // Close modal
+  document.querySelector('[style*="position: fixed"]')?.remove();
+  
+  // Refresh the map and update display
   applyFilters();
-  showToast(`✅ Updated ${schools.length} schools locally. Saving to database...`, 3000);
-  
-  // STEP 3: Save to Google Sheets in background with parallel requests
-  let successCount = 0;
-  let failureCount = 0;
-  
-  // Process updates in batches of 5 parallel requests
-  const batchSize = 5;
-  const updatePromises = [];
-  
-  for (let i = 0; i < schools.length; i += batchSize) {
-    const batch = schools.slice(i, i + batchSize);
-    
-    const batchPromises = batch.map(async (school) => {
-      try {
-        // Determine key field for this school
-        const keyField = school.Id ? 'Id' : 'School+Address';
-        const keyValue = school.Id ? String(school.Id) : JSON.stringify({ 
-          School: (school.School || school.SchoolName || school.Name || ''), 
-          Address: (school.Address || '') 
-        });
-        
-        // Create patch for data source update
-        const patch = { 
-          Status: newStatus,
-          LastModified: timestamp
-        };
-        
-        // Save to data source (Google Sheets)
-        await updateRowInSheet({ keyField, keyValue, patch });
-        successCount++;
-        
-        return { success: true, school };
-      } catch (error) {
-        console.error(`Failed to persist ${school.School || school.SchoolName}:`, error);
-        // Revert local change on failure
-        school.Status = originalStatuses.get(school);
-        failureCount++;
-        
-        return { success: false, school, error };
-      }
-    });
-    
-    updatePromises.push(...batchPromises);
-    
-    // Wait for current batch before starting next batch
-    await Promise.all(batchPromises);
-    
-    // Update progress
-    const processed = Math.min(i + batchSize, schools.length);
-    if (processed < schools.length) {
-      showToast(`🔄 Saved ${processed} of ${schools.length} to database...`, 2000);
-    }
-  }
-  
-  // Wait for all updates to complete
-  await Promise.all(updatePromises);
-  
-  // Refresh UI if any changes were reverted due to failures
-  if (failureCount > 0) {
-    applyFilters();
-  }
-  
-  // Show final result
-  if (successCount === schools.length) {
-    showToast(`✅ Successfully saved ${successCount} schools to database`);
-  } else if (successCount > 0) {
-    showToast(`⚠️ Saved ${successCount} schools, ${failureCount} failed and reverted`);
-  } else {
-    showToast(`❌ Failed to save schools to database. Changes reverted.`);
-  }
+  showToast(`✅ Updated ${updatedCount} schools to new status`);
 };
 
 window.closeBatchModal = function() {
@@ -4711,13 +4237,6 @@ function makeDraggable(panelId, headerId) {
       document.body.style.userSelect = '';
     }
   });
-
-  // Initialize profile UI after DOM is loaded
-  setTimeout(() => {
-    if (window.profileManager) {
-      profileManager.updateUI();
-    }
-  }, 100);
 }
 </script>
 </body>
